@@ -26,7 +26,12 @@
             <tbody class="divide-y divide-slate-100">
                 @foreach($shifts as $shift)
                     <tr>
-                        <td class="px-4 py-3">{{ $shift->user->name }}</td>
+                        <td class="px-4 py-3">
+                            {{ $shift->operator_name ?: $shift->user->name }}
+                            @if($shift->operator_name)
+                                <span class="block text-xs text-slate-400">akun {{ $shift->user->name }}</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 text-slate-600">{{ $shift->opened_at->format('d M Y H:i') }}</td>
                         <td class="px-4 py-3 text-right">{{ Money::format($shift->opening_cash) }}</td>
                         <td class="px-4 py-3 text-xs text-slate-500">

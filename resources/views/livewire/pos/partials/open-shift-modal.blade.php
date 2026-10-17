@@ -2,7 +2,7 @@
     <div class="flex items-start justify-between p-6 pb-0">
         <div>
             <h2 class="text-lg font-semibold text-slate-900">Buka Shift</h2>
-            <p class="mt-1 text-sm text-slate-500">Masukkan modal awal kas di laci sebelum mulai transaksi.</p>
+            <p class="mt-1 text-sm text-slate-500">Masukkan nama penjaga dan modal awal kas di laci sebelum mulai transaksi.</p>
         </div>
         <p class="flex-shrink-0 text-sm text-slate-500">
             {{ auth()->user()->name }} &middot;
@@ -13,7 +13,8 @@
         </form>
     </div>
     <form wire:submit="openShift" class="p-6">
-        <div class="mt-4">
+        <div class="mt-4 space-y-4">
+            <x-input label="Nama Penjaga" wire:model="operatorName" placeholder="Nama yang jaga kasir" autofocus />
             <x-money-input label="Modal Awal" wire:model="openingCash" />
         </div>
         <div class="mt-6 flex justify-end">

@@ -14,9 +14,9 @@ use Illuminate\Support\Facades\DB;
 
 class ShiftService
 {
-    public function open(User $user, int $locationId, float $openingCash): Shift
+    public function open(User $user, int $locationId, float $openingCash, ?string $operatorName = null): Shift
     {
-        return DB::transaction(function () use ($user, $locationId, $openingCash) {
+        return DB::transaction(function () use ($user, $locationId, $openingCash, $operatorName) {
             $existing = Shift::query()
                 ->where('user_id', $user->id)
                 ->where('status', ShiftStatus::Open)
@@ -30,6 +30,7 @@ class ShiftService
             return Shift::create([
                 'user_id' => $user->id,
                 'location_id' => $locationId,
+                'operator_name' => $operatorName,
                 'opened_at' => now(),
                 'opening_cash' => $openingCash,
                 'status' => ShiftStatus::Open,

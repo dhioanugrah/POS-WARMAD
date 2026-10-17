@@ -20,7 +20,7 @@
     <div class="flex h-14 flex-shrink-0 items-center gap-4 border-b border-slate-200 bg-white px-4">
         <span class="font-semibold text-slate-900">{{ setting('store.name', config('app.name')) }}</span>
         <span class="text-sm text-slate-400">|</span>
-        <span class="text-sm text-slate-600">Kasir: {{ auth()->user()->name }}</span>
+        <span class="text-sm text-slate-600">Kasir: {{ $this->shift?->operator_name ?: auth()->user()->name }}</span>
         @if($this->shift)
             <span class="text-sm text-slate-500">Shift sejak {{ $this->shift->opened_at->format('H:i') }}</span>
         @endif

@@ -18,12 +18,18 @@
             @foreach($shifts as $row)
                 <div class="rounded-lg border border-slate-100 p-4">
                     <div class="flex items-center justify-between">
-                        <p class="font-medium text-slate-900">{{ $row['shift']->user->name }}</p>
+                        <p class="font-medium text-slate-900">{{ $row['shift']->operator_name ?: $row['shift']->user->name }}</p>
                         <x-badge variant="success">Buka {{ $row['shift']->opened_at->diffForHumans(null, true) }}</x-badge>
                     </div>
-                    <p class="text-xs text-slate-400">{{ $row['shift']->location->name }} &middot; sejak {{ $row['shift']->opened_at->format('H:i') }}</p>
+                    <p class="text-xs text-slate-400">
+                        @if($row['shift']->operator_name)
+                            akun {{ $row['shift']->user->name }} &middot;
+                        @endif
+                        {{ $row['shift']->location->name }} &middot; sejak {{ $row['shift']->opened_at->format('H:i') }}
+                    </p>
 
                     <div class="mt-3 space-y-1 text-sm">
+                        <div class="flex justify-between"><span class="text-slate-500">Modal Awal</span><span>{{ Money::format($row['shift']->opening_cash) }}</span></div>
                         <div class="flex justify-between"><span class="text-slate-500">Kas di Laci</span><span class="font-semibold text-emerald-600">{{ Money::format($row['expected_cash']) }}</span></div>
                         <div class="flex justify-between"><span class="text-slate-500">Transaksi</span><span>{{ $row['sales_count'] }} nota &middot; {{ Money::format($row['sales_total']) }}</span></div>
                         @if($row['last_sale_at'])

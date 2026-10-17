@@ -17,6 +17,7 @@ class Shift extends Model
     protected $fillable = [
         'user_id',
         'location_id',
+        'operator_name',
         'opened_at',
         'opening_cash',
         'closed_at',

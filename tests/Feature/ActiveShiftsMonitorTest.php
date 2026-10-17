@@ -47,6 +47,25 @@ class ActiveShiftsMonitorTest extends TestCase
         $component->assertSee('Budi')->assertSee('209.000')->assertSee('1 nota');
     }
 
+    public function test_shows_name_of_whoever_is_on_duty_and_opening_cash(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+        $location = Location::create(['code' => 'TKO', 'name' => 'Toko Utama', 'type' => LocationType::Store]);
+        $kasir = User::factory()->create(['name' => 'Akun Kasir']);
+        $kasir->assignRole('Kasir');
+
+        Shift::create([
+            'user_id' => $kasir->id, 'location_id' => $location->id, 'opened_at' => now(),
+            'operator_name' => 'Siti', 'opening_cash' => 150000, 'status' => 'open',
+        ]);
+
+        Livewire::test(ActiveShiftsMonitor::class)
+            ->assertSee('Siti')
+            ->assertSee('akun Akun Kasir')
+            ->assertSee('Modal Awal')
+            ->assertSee('150.000');
+    }
+
     public function test_owner_dashboard_shows_monitor_but_gudang_does_not(): void
     {
         $this->seed(RolePermissionSeeder::class);

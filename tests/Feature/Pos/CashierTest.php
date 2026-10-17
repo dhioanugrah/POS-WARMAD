@@ -56,17 +56,31 @@ class CashierTest extends TestCase
         Livewire::actingAs($this->kasir)
             ->test(Cashier::class)
             ->assertSet('showOpenShiftModal', true)
+            ->set('operatorName', 'Budi')
             ->set('openingCash', 200000)
             ->call('openShift')
             ->assertSet('showOpenShiftModal', false);
 
-        $this->assertDatabaseHas('shifts', ['user_id' => $this->kasir->id, 'opening_cash' => 200000]);
+        $this->assertDatabaseHas('shifts', ['user_id' => $this->kasir->id, 'operator_name' => 'Budi', 'opening_cash' => 200000]);
+    }
+
+    public function test_opening_shift_requires_the_name_of_whoever_is_on_duty(): void
+    {
+        Livewire::actingAs($this->kasir)
+            ->test(Cashier::class)
+            ->set('openingCash', 200000)
+            ->call('openShift')
+            ->assertHasErrors(['operatorName' => 'required'])
+            ->assertSet('showOpenShiftModal', true);
+
+        $this->assertDatabaseCount('shifts', 0);
     }
 
     private function withOpenShift(): Testable
     {
         return Livewire::actingAs($this->kasir)
             ->test(Cashier::class)
+            ->set('operatorName', 'Budi')
             ->set('openingCash', 200000)
             ->call('openShift');
     }

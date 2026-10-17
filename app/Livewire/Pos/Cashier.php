@@ -34,6 +34,8 @@ class Cashier extends Component
 
     public bool $showOpenShiftModal = false;
 
+    public string $operatorName = '';
+
     public $openingCash = 0;
 
     public string $search = '';
@@ -112,12 +114,15 @@ class Cashier extends Component
 
     public function openShift(): void
     {
-        $this->validate(['openingCash' => 'required|numeric|min:0'], [], ['openingCash' => 'modal awal']);
+        $this->validate([
+            'operatorName' => 'required|string|max:100',
+            'openingCash' => 'required|numeric|min:0',
+        ], [], ['operatorName' => 'nama penjaga', 'openingCash' => 'modal awal']);
 
         $locationId = auth()->user()->default_location_id ?? Location::query()->where('is_active', true)->value('id');
 
         try {
-            $shift = app(ShiftService::class)->open(auth()->user(), $locationId, (float) $this->openingCash);
+            $shift = app(ShiftService::class)->open(auth()->user(), $locationId, (float) $this->openingCash, trim($this->operatorName));
             $this->shiftId = $shift->id;
             $this->showOpenShiftModal = false;
         } catch (PosException $e) {

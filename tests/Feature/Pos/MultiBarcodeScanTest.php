@@ -38,6 +38,7 @@ class MultiBarcodeScanTest extends TestCase
 
         Livewire::actingAs($kasir)
             ->test(Cashier::class)
+            ->set('operatorName', 'Budi')
             ->set('openingCash', 200000)
             ->call('openShift')
             ->set('search', '2222222222222')
