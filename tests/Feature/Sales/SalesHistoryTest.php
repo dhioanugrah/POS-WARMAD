@@ -24,10 +24,12 @@ class SalesHistoryTest extends TestCase
 {
     use RefreshDatabase;
 
+    private int $saleSequence = 0;
+
     private function makeSale(Location $location, User $cashier, float $total = 9000): Sale
     {
         return Sale::create([
-            'number' => 'PJ-TKO-260926-000'.random_int(1, 9),
+            'number' => 'PJ-TKO-260926-'.str_pad((string) ++$this->saleSequence, 4, '0', STR_PAD_LEFT),
             'location_id' => $location->id,
             'user_id' => $cashier->id,
             'sold_at' => now(),
