@@ -19,6 +19,7 @@ class SaleItem extends Model
         'product_unit_id',
         'product_name',
         'unit_name',
+        'barcodes',
         'conversion_factor',
         'qty',
         'qty_base',
@@ -32,6 +33,7 @@ class SaleItem extends Model
     ];
 
     protected $casts = [
+        'barcodes' => 'array',
         'conversion_factor' => 'decimal:3',
         'qty' => 'decimal:3',
         'qty_base' => 'decimal:3',

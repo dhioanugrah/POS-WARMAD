@@ -10,5 +10,7 @@ readonly class CheckoutItemData
         public ?string $discountType = null,
         public ?float $discountValue = null,
         public ?float $priceOverride = null,
+        /** @var list<string> barcodes scanned for this line */
+        public array $barcodes = [],
     ) {}
 }

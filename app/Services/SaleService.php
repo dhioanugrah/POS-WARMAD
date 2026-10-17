@@ -90,6 +90,7 @@ class SaleService
                     'subtotal' => $itemSubtotal,
                     'unit_cost' => $unitCostPerSoldUnit,
                     'price_overridden' => $item->priceOverride !== null && $user->can('pos.override-price'),
+                    'barcodes' => $item->barcodes ?: null,
                 ];
             }
 
@@ -178,6 +179,7 @@ class SaleService
                     'product_unit_id' => $row['unit']->id,
                     'product_name' => $row['product']->name,
                     'unit_name' => $row['unit']->unit_name,
+                    'barcodes' => $row['barcodes'],
                     'conversion_factor' => $row['unit']->conversion_factor,
                     'qty' => $row['qty'],
                     'qty_base' => $row['qty_base'],

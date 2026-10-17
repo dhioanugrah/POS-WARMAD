@@ -135,6 +135,54 @@ class CashierTest extends TestCase
         $this->assertCount(3, $component->viewData('barcodeProducts')->firstWhere('name', 'Indomie Goreng Special')['barcodes']);
     }
 
+    public function test_sold_barcodes_stay_out_of_the_item_cards_until_the_sale_is_voided(): void
+    {
+        $this->indomiePcs->barcodes()->create(['barcode' => '8998866200999']);
+
+        $component = $this->withOpenShift()
+            ->set('search', '8998866200999')
+            ->call('openPayment')
+            ->set('paymentMethod', 'cash')
+            ->set('paymentAmount', 3000)
+            ->call('pay')
+            ->assertHasNoErrors();
+
+        $sale = Sale::firstOrFail();
+        $this->assertSame(['8998866200999'], $sale->items->first()->barcodes);
+
+        $cardBarcodes = fn () => array_column($component->viewData('barcodeProducts')->firstWhere('name', 'Indomie Goreng Special')['barcodes'], 'barcode');
+        $this->assertSame(['18998866200308', '8998866200301'], $cardBarcodes());
+
+        // A product whose every barcode has been sold disappears from the cards.
+        $component->set('search', '8998866200301')
+            ->call('openPayment')
+            ->set('paymentMethod', 'cash')
+            ->set('paymentAmount', 3000)
+            ->call('pay')
+            ->set('search', '18998866200308')
+            ->call('openPayment')
+            ->set('paymentMethod', 'cash')
+            ->set('paymentAmount', 115000)
+            ->call('pay');
+        $this->assertNull($component->viewData('barcodeProducts')->firstWhere('name', 'Indomie Goreng Special'));
+
+        // Voiding a sale puts its barcode back.
+        $admin = User::factory()->create();
+        $admin->assignRole('Admin');
+        Livewire::actingAs($admin)->test(Cashier::class)->call('voidSale', $sale->id, 'Salah input');
+
+        $this->assertSame(['8998866200999'], array_column($component->call('$refresh')->viewData('barcodeProducts')->firstWhere('name', 'Indomie Goreng Special')['barcodes'], 'barcode'));
+    }
+
+    public function test_barcodes_scanned_into_a_row_follow_it_when_the_unit_changes(): void
+    {
+        $component = $this->withOpenShift()
+            ->set('search', '8998866200301')
+            ->call('changeUnit', $this->indomiePcs->id, $this->indomieDus->id);
+
+        $this->assertSame(['8998866200301'], $component->get('cart')[$this->indomieDus->id]['barcodes']);
+    }
+
     public function test_search_by_name_uat_pos_05(): void
     {
         $aqua = Product::create(['code' => 'BRD-002', 'name' => 'Aqua Botol 600ml', 'type' => ProductType::Stock, 'base_unit' => 'Botol']);

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Pos;
 
+use App\Enums\SaleStatus;
 use App\Enums\ShiftStatus;
 use App\Exceptions\PosException;
 use App\Livewire\Concerns\PicksBarcodes;
@@ -12,6 +13,7 @@ use App\Models\Location;
 use App\Models\Product;
 use App\Models\ProductUnit;
 use App\Models\Sale;
+use App\Models\SaleItem;
 use App\Models\Shift;
 use App\Services\DocumentNumberService;
 use App\Services\Sales\CheckoutData;
@@ -164,7 +166,9 @@ class Cashier extends Component
         $unit = ProductUnit::query()->whereAnyBarcode($trimmed)->whereHas('product', fn ($q) => $q->where('is_active', true))->first();
         if ($unit) {
             $this->addToCart($unit->id);
-            $this->markBarcodePicked($trimmed, $unit->id);
+            if (isset($this->cart[$unit->id])) {
+                $this->cart[$unit->id]['barcodes'][] = $trimmed;
+            }
             $this->search = '';
 
             return true;
@@ -275,6 +279,7 @@ class Cashier extends Component
                 'stock_qty' => $stockQty,
                 'min_stock' => (float) $product->min_stock,
                 'is_service' => $product->type->value === 'service',
+                'barcodes' => [],
             ];
         }
 
@@ -439,6 +444,7 @@ class Cashier extends Component
             qty: (float) $row['qty'],
             discountType: $row['discount_type'],
             discountValue: $row['discount_value'] !== null ? (float) $row['discount_value'] : null,
+            barcodes: array_values(array_unique($row['barcodes'] ?? [])),
         ))->values()->all();
 
         try {
@@ -619,13 +625,21 @@ class Cashier extends Component
 
     /**
      * Item cards for picking without a scanner: each card holds the item's
-     * barcodes that are not in the cart yet.
+     * barcodes that are neither in the cart nor already sold.
      */
     private function barcodeProducts(): Collection
     {
+        $soldBarcodes = SaleItem::query()
+            ->whereNotNull('barcodes')
+            ->whereHas('sale', fn ($q) => $q->where('status', SaleStatus::Completed))
+            ->pluck('barcodes')
+            ->flatten()
+            ->all();
+
         $options = $this->barcodeOptions(
             $this->shift?->location_id ?? auth()->user()->default_location_id ?? Location::query()->where('is_active', true)->value('id'),
             array_keys($this->cart),
+            excludeBarcodes: [...collect($this->cart)->pluck('barcodes')->flatten()->all(), ...$soldBarcodes],
         );
 
         return $options->groupBy('product_id')

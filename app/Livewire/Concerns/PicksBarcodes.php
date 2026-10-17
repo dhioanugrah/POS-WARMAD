@@ -26,9 +26,10 @@ trait PicksBarcodes
     /**
      * @param  list<int>  $unitIdsInList  units currently on the screen; picks for units removed since are forgotten
      * @param  Closure(Builder): void|null  $productScope  extra constraints on the product
+     * @param  list<string>  $excludeBarcodes  further barcodes to leave out
      * @return Collection<int, array{barcode: string, unit_id: int, product_id: int, product_name: string, product_code: string, image_path: ?string, unit_name: string, price: float, stock: float, base_unit: string}>
      */
-    protected function barcodeOptions(?int $locationId, array $unitIdsInList, string $filter = '', ?Closure $productScope = null): Collection
+    protected function barcodeOptions(?int $locationId, array $unitIdsInList, string $filter = '', ?Closure $productScope = null, array $excludeBarcodes = []): Collection
     {
         $this->pickedBarcodes = array_filter($this->pickedBarcodes, fn ($unitId) => in_array($unitId, $unitIdsInList, true));
 
@@ -57,7 +58,7 @@ trait PicksBarcodes
                 'stock' => (float) ($stocks[$unit->product_id] ?? 0),
                 'base_unit' => $unit->product->base_unit,
             ]))
-            ->reject(fn ($option) => array_key_exists($option['barcode'], $this->pickedBarcodes))
+            ->reject(fn ($option) => array_key_exists($option['barcode'], $this->pickedBarcodes) || in_array($option['barcode'], $excludeBarcodes, true))
             ->when($filter !== '', fn ($options) => $options->filter(fn ($option) => str_contains($option['barcode'], $filter)
                 || str_contains(mb_strtolower($option['product_name']), mb_strtolower($filter))
                 || str_contains(mb_strtolower($option['product_code']), mb_strtolower($filter))))

@@ -82,21 +82,20 @@
                             }"
                             class="p-3"
                         >
-                            <div x-show="selected === null" class="grid grid-cols-2 gap-3 lg:grid-cols-3">
+                            <div x-show="selected === null" class="grid grid-cols-3 gap-2 lg:grid-cols-4 2xl:grid-cols-5">
                                 @foreach($barcodeProducts as $card)
-                                    <button type="button" wire:key="card-{{ $card['product_id'] }}" x-on:click="selected = {{ $card['product_id'] }}" class="flex flex-col overflow-hidden rounded-xl bg-white text-left ring-1 ring-slate-200 transition hover:ring-2 hover:ring-emerald-500">
+                                    <button type="button" wire:key="card-{{ $card['product_id'] }}" x-on:click="selected = {{ $card['product_id'] }}" class="flex flex-col overflow-hidden rounded-lg bg-white text-left ring-1 ring-slate-200 transition hover:ring-2 hover:ring-emerald-500">
                                         @if($card['image_path'])
-                                            <img src="{{ Storage::url($card['image_path']) }}" alt="" class="aspect-square w-full object-cover">
+                                            <img src="{{ Storage::url($card['image_path']) }}" alt="" class="h-16 w-full object-cover">
                                         @else
-                                            <div class="flex aspect-square w-full items-center justify-center bg-slate-100 text-slate-300"><x-icon name="cube" class="size-10" /></div>
+                                            <div class="flex h-16 w-full items-center justify-center bg-slate-100 text-slate-300"><x-icon name="cube" class="size-7" /></div>
                                         @endif
-                                        <div class="flex flex-1 flex-col gap-1 p-3">
-                                            <p class="line-clamp-2 text-sm font-medium text-slate-900">{{ $card['name'] }}</p>
-                                            <p class="text-sm font-semibold text-emerald-600">{{ Money::format($card['price']) }}</p>
-                                            <div class="mt-auto flex flex-wrap items-center gap-1 pt-1">
-                                                <x-badge :variant="$card['stock'] > 0 ? 'neutral' : 'warning'">Stok {{ \App\Support\UnitFormatter::formatQty($card['stock']) }} {{ $card['base_unit'] }}</x-badge>
-                                                <x-badge variant="info">{{ count($card['barcodes']) }} barcode</x-badge>
-                                            </div>
+                                        <div class="flex flex-1 flex-col gap-0.5 p-2">
+                                            <p class="line-clamp-2 text-xs font-medium leading-tight text-slate-900">{{ $card['name'] }}</p>
+                                            <p class="text-xs font-semibold text-emerald-600">{{ Money::format($card['price']) }}</p>
+                                            <p class="mt-auto pt-0.5 text-[11px] leading-tight {{ $card['stock'] > 0 ? 'text-slate-500' : 'text-amber-600' }}">
+                                                Stok {{ \App\Support\UnitFormatter::formatQty($card['stock']) }} &middot; {{ count($card['barcodes']) }} barcode
+                                            </p>
                                         </div>
                                     </button>
                                 @endforeach
@@ -111,9 +110,9 @@
                                     <p class="mb-3 text-xs text-slate-500">Klik barcode untuk memasukkannya seperti hasil scan.</p>
                                     <div class="divide-y divide-slate-100 rounded-lg ring-1 ring-slate-200">
                                         @foreach($card['barcodes'] as $b)
-                                            <button type="button" wire:key="card-barcode-{{ $b['barcode'] }}" x-on:click="pick(@js($b['barcode']), {{ count($card['barcodes']) }})" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-emerald-50">
+                                            <button type="button" wire:key="card-barcode-{{ $b['barcode'] }}" x-on:click="pick(@js($b['barcode']), {{ count($card['barcodes']) }})" class="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-emerald-50">
                                                 <span>
-                                                    <span class="block font-mono text-slate-900">{{ $b['barcode'] }}</span>
+                                                    <span class="block font-mono text-sm text-slate-900">{{ $b['barcode'] }}</span>
                                                     <span class="block text-xs text-slate-500">{{ $b['unit_name'] }}</span>
                                                 </span>
                                                 <span class="text-sm font-semibold text-slate-700">{{ Money::format($b['price']) }}</span>
