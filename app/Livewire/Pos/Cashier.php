@@ -20,6 +20,7 @@ use App\Services\Sales\CheckoutPaymentData;
 use App\Services\SaleService;
 use App\Services\ShiftService;
 use App\Support\Money;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -616,17 +617,38 @@ class Cashier extends Component
         $this->dispatch('notify', message: 'Transaksi dibatalkan (void).', type: 'success');
     }
 
+    /**
+     * Item cards for picking without a scanner: each card holds the item's
+     * barcodes that are not in the cart yet.
+     */
+    private function barcodeProducts(): Collection
+    {
+        $options = $this->barcodeOptions(
+            $this->shift?->location_id ?? auth()->user()->default_location_id ?? Location::query()->where('is_active', true)->value('id'),
+            array_keys($this->cart),
+        );
+
+        return $options->groupBy('product_id')
+            ->map(fn (Collection $barcodes) => [
+                'product_id' => $barcodes->first()['product_id'],
+                'name' => $barcodes->first()['product_name'],
+                'code' => $barcodes->first()['product_code'],
+                'image_path' => $barcodes->first()['image_path'],
+                'price' => $barcodes->min('price'),
+                'stock' => $barcodes->first()['stock'],
+                'base_unit' => $barcodes->first()['base_unit'],
+                'barcodes' => $barcodes->map(fn ($b) => ['barcode' => $b['barcode'], 'unit_name' => $b['unit_name'], 'price' => $b['price']])->values()->all(),
+            ])
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+    }
+
     public function render()
     {
         return view('livewire.pos.cashier', [
             'heldCarts' => HeldCart::query()->where('user_id', auth()->id())->latest()->get(),
             'searchResultsList' => $this->searchResults(),
-            'barcodeOptions' => trim($this->search) === ''
-                ? $this->barcodeOptions(
-                    $this->shift?->location_id ?? auth()->user()->default_location_id ?? Location::query()->where('is_active', true)->value('id'),
-                    array_keys($this->cart),
-                )
-                : collect(),
+            'barcodeProducts' => trim($this->search) === '' ? $this->barcodeProducts() : collect(),
             'cashCategories' => CashCategory::query()->where('type', $this->cashDrawerType)->where('is_active', true)->pluck('name', 'id'),
             'shiftSales' => $this->shiftId
                 ? Sale::query()->where('shift_id', $this->shiftId)->latest('sold_at')->get()

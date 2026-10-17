@@ -26,7 +26,7 @@ trait PicksBarcodes
     /**
      * @param  list<int>  $unitIdsInList  units currently on the screen; picks for units removed since are forgotten
      * @param  Closure(Builder): void|null  $productScope  extra constraints on the product
-     * @return Collection<int, array{barcode: string, unit_id: int, product_name: string, unit_name: string, stock: float, base_unit: string}>
+     * @return Collection<int, array{barcode: string, unit_id: int, product_id: int, product_name: string, product_code: string, image_path: ?string, unit_name: string, price: float, stock: float, base_unit: string}>
      */
     protected function barcodeOptions(?int $locationId, array $unitIdsInList, string $filter = '', ?Closure $productScope = null): Collection
     {
@@ -48,9 +48,12 @@ trait PicksBarcodes
             ->flatMap(fn (ProductUnit $unit) => collect($unit->all_barcodes)->map(fn ($barcode) => [
                 'barcode' => $barcode,
                 'unit_id' => $unit->id,
+                'product_id' => $unit->product_id,
                 'product_name' => $unit->product->name,
                 'product_code' => $unit->product->code,
+                'image_path' => $unit->product->image_path,
                 'unit_name' => $unit->unit_name,
+                'price' => (float) $unit->price_sell,
                 'stock' => (float) ($stocks[$unit->product_id] ?? 0),
                 'base_unit' => $unit->product->base_unit,
             ]))

@@ -112,19 +112,27 @@ class CashierTest extends TestCase
         $this->assertCount(1, $component->get('cart'));
     }
 
-    public function test_barcode_list_shows_when_search_is_empty_and_picking_adds_to_cart(): void
+    public function test_item_cards_group_remaining_barcodes_and_clicking_one_works_like_a_scan(): void
     {
         $this->indomiePcs->barcodes()->create(['barcode' => '8998866200999']);
+        $aqua = Product::create(['code' => 'BRD-002', 'name' => 'Aqua Botol', 'type' => ProductType::Stock, 'base_unit' => 'Botol']);
+        ProductUnit::create(['product_id' => $aqua->id, 'unit_name' => 'Botol', 'conversion_factor' => 1, 'is_base' => true, 'is_default_sale' => true, 'barcode' => '8886008101053', 'price_sell' => 4000]);
 
         $component = $this->withOpenShift();
-        $this->assertSame(['18998866200308', '8998866200301', '8998866200999'], $component->viewData('barcodeOptions')->pluck('barcode')->all());
+        $cards = $component->viewData('barcodeProducts');
+        $this->assertSame(['Aqua Botol', 'Indomie Goreng Special'], $cards->pluck('name')->all());
+        $indomie = $cards->firstWhere('name', 'Indomie Goreng Special');
+        $this->assertSame(['18998866200308', '8998866200301', '8998866200999'], array_column($indomie['barcodes'], 'barcode'));
+        $this->assertSame(3000.0, $indomie['price']);
+        $this->assertSame(100.0, $indomie['stock']);
 
-        $component->call('pickBarcode', '8998866200999');
+        // Clicking a barcode fills the scan box and submits it, exactly like a scanner.
+        $component->set('search', '8998866200999')->call('handleEnter');
         $this->assertSame(1.0, (float) $component->get('cart')[$this->indomiePcs->id]['qty']);
-        $this->assertSame(['18998866200308', '8998866200301'], $component->viewData('barcodeOptions')->pluck('barcode')->all());
+        $this->assertSame(['18998866200308', '8998866200301'], array_column($component->viewData('barcodeProducts')->firstWhere('name', 'Indomie Goreng Special')['barcodes'], 'barcode'));
 
         $component->call('clearCart');
-        $this->assertCount(3, $component->viewData('barcodeOptions'));
+        $this->assertCount(3, $component->viewData('barcodeProducts')->firstWhere('name', 'Indomie Goreng Special')['barcodes']);
     }
 
     public function test_search_by_name_uat_pos_05(): void

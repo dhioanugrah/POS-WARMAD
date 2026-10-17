@@ -68,8 +68,61 @@
                         <span class="font-semibold text-slate-700">{{ Money::format($unit->price_sell) }}</span>
                     </button>
                 @empty
-                    @if(trim($search) === '' && $barcodeOptions->isNotEmpty())
-                        <x-barcode-picker :options="$barcodeOptions" title="Scan barcode, ketik nama, atau pilih barcode di bawah" />
+                    @if(trim($search) === '' && $barcodeProducts->isNotEmpty())
+                        {{-- Item cards: pick an item, then one of its barcodes; the barcode is
+                             typed into the scan box and submitted just like a scanner would. --}}
+                        <div
+                            x-data="{
+                                selected: null,
+                                pick(barcode, remaining) {
+                                    if (remaining <= 1) this.selected = null;
+                                    $wire.search = barcode;
+                                    $wire.handleEnter();
+                                },
+                            }"
+                            class="p-3"
+                        >
+                            <div x-show="selected === null" class="grid grid-cols-2 gap-3 lg:grid-cols-3">
+                                @foreach($barcodeProducts as $card)
+                                    <button type="button" wire:key="card-{{ $card['product_id'] }}" x-on:click="selected = {{ $card['product_id'] }}" class="flex flex-col overflow-hidden rounded-xl bg-white text-left ring-1 ring-slate-200 transition hover:ring-2 hover:ring-emerald-500">
+                                        @if($card['image_path'])
+                                            <img src="{{ Storage::url($card['image_path']) }}" alt="" class="aspect-square w-full object-cover">
+                                        @else
+                                            <div class="flex aspect-square w-full items-center justify-center bg-slate-100 text-slate-300"><x-icon name="cube" class="size-10" /></div>
+                                        @endif
+                                        <div class="flex flex-1 flex-col gap-1 p-3">
+                                            <p class="line-clamp-2 text-sm font-medium text-slate-900">{{ $card['name'] }}</p>
+                                            <p class="text-sm font-semibold text-emerald-600">{{ Money::format($card['price']) }}</p>
+                                            <div class="mt-auto flex flex-wrap items-center gap-1 pt-1">
+                                                <x-badge :variant="$card['stock'] > 0 ? 'neutral' : 'warning'">Stok {{ \App\Support\UnitFormatter::formatQty($card['stock']) }} {{ $card['base_unit'] }}</x-badge>
+                                                <x-badge variant="info">{{ count($card['barcodes']) }} barcode</x-badge>
+                                            </div>
+                                        </div>
+                                    </button>
+                                @endforeach
+                            </div>
+
+                            @foreach($barcodeProducts as $card)
+                                <div wire:key="card-barcodes-{{ $card['product_id'] }}" x-show="selected === {{ $card['product_id'] }}" x-cloak>
+                                    <button type="button" x-on:click="selected = null" class="mb-3 flex items-center gap-1 text-sm text-slate-500 hover:text-slate-900">
+                                        <x-icon name="chevron-left" class="size-4" /> Semua barang
+                                    </button>
+                                    <p class="font-semibold text-slate-900">{{ $card['name'] }}</p>
+                                    <p class="mb-3 text-xs text-slate-500">Klik barcode untuk memasukkannya seperti hasil scan.</p>
+                                    <div class="divide-y divide-slate-100 rounded-lg ring-1 ring-slate-200">
+                                        @foreach($card['barcodes'] as $b)
+                                            <button type="button" wire:key="card-barcode-{{ $b['barcode'] }}" x-on:click="pick(@js($b['barcode']), {{ count($card['barcodes']) }})" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-emerald-50">
+                                                <span>
+                                                    <span class="block font-mono text-slate-900">{{ $b['barcode'] }}</span>
+                                                    <span class="block text-xs text-slate-500">{{ $b['unit_name'] }}</span>
+                                                </span>
+                                                <span class="text-sm font-semibold text-slate-700">{{ Money::format($b['price']) }}</span>
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
                     @else
                         <div class="flex h-full items-center justify-center p-8 text-center text-sm text-slate-400">
                             Ketik nama/kode barang atau scan barcode untuk mulai.
