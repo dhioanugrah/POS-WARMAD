@@ -191,6 +191,36 @@ class CashierTest extends TestCase
         $this->assertSame('97.000', $this->indomie->fresh()->stocks()->first()->qty);
     }
 
+    public function test_receipt_prints_after_payment_when_auto_print_is_on(): void
+    {
+        setting_set('receipt.auto_print', true);
+
+        $this->withOpenShift()
+            ->set('search', '3*BRD-001')
+            ->call('openPayment')
+            ->set('paymentMethod', 'cash')
+            ->set('paymentAmount', 10000)
+            ->call('pay')
+            ->assertDispatched('print-receipt');
+    }
+
+    public function test_payment_returns_to_cashier_without_printing_when_auto_print_is_off(): void
+    {
+        setting_set('receipt.auto_print', false);
+
+        $this->withOpenShift()
+            ->set('search', '3*BRD-001')
+            ->call('openPayment')
+            ->set('paymentMethod', 'cash')
+            ->set('paymentAmount', 10000)
+            ->call('pay')
+            ->assertSet('showPaymentModal', false)
+            ->assertSet('cart', [])
+            ->assertNotDispatched('print-receipt')
+            ->call('reprintLast')
+            ->assertDispatched('print-receipt');
+    }
+
     public function test_hold_and_resume_uat_pos_15(): void
     {
         $component = $this->withOpenShift()

@@ -4,7 +4,7 @@
     x-on:focus-search.window="$refs.searchInput?.focus()"
     x-on:print-receipt.window="
         let f = document.getElementById('receipt-frame');
-        f.src = '/pos/receipt/' + $event.detail.saleId + ($event.detail.copy ? '?copy=1' : '') + '&t=' + Date.now();
+        f.src = '/pos/receipt/' + $event.detail.saleId + '?t=' + Date.now() + ($event.detail.copy ? '&copy=1' : '');
     "
     x-on:keydown.window.f2.prevent="$refs.searchInput?.focus()"
     x-on:keydown.window.f4.prevent="$dispatch('open-customer-picker')"

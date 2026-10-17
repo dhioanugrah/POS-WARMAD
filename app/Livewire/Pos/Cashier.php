@@ -462,7 +462,9 @@ class Cashier extends Component
         $change = (float) $sale->change_amount;
         $this->clearCart();
         $this->dispatch('notify', message: $change > 0 ? 'Transaksi berhasil. Kembalian '.Money::format($change) : 'Transaksi berhasil.', type: 'success');
-        $this->dispatch('print-receipt', saleId: $sale->id);
+        if (setting('receipt.auto_print', true)) {
+            $this->dispatch('print-receipt', saleId: $sale->id);
+        }
         $this->dispatch('focus-search');
     }
 
