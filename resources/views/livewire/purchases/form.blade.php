@@ -33,8 +33,9 @@
     </div>
 
     @if($status?->value === 'draft')
-        <div class="relative mt-4 max-w-md">
-            <x-input wire:model.live.debounce.300ms="search" placeholder="Cari barang untuk ditambahkan..." />
+        <div class="relative mt-4 max-w-md" x-data x-on:focus-search.window="$refs.searchInput?.focus()">
+            <x-input x-ref="searchInput" wire:model.live.debounce.300ms="search" wire:keydown.enter.prevent="scan" placeholder="Scan barcode atau cari nama barang..." autofocus />
+            <p class="mt-1 text-xs text-slate-400">Scan barcode lalu Enter: qty bertambah 1 tiap scan. Scan barcode kardus untuk menambah per kardus.</p>
             @if($results->isNotEmpty())
                 <div class="absolute z-10 mt-1 w-full rounded-lg bg-white shadow-lg ring-1 ring-slate-200 divide-y divide-slate-100">
                     @foreach($results as $product)

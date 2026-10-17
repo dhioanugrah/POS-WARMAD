@@ -75,6 +75,59 @@ class PurchaseFormTest extends TestCase
         $this->assertSame('180.000', $this->indomie->fresh()->stocks()->first()->qty);
     }
 
+    public function test_each_scan_of_the_same_barcode_adds_one_to_qty(): void
+    {
+        $this->indomie->units()->where('unit_name', 'Pcs')->update(['barcode' => '8998866200301']);
+
+        $component = Livewire::actingAs($this->admin)->test(Form::class);
+
+        foreach (range(1, 3) as $i) {
+            $component->set('search', '8998866200301')->call('scan');
+        }
+
+        $component->assertCount('items', 1)
+            ->assertSet('items.0.unit_name', 'Pcs')
+            ->assertSet('items.0.qty', '3')
+            ->assertSet('search', '');
+    }
+
+    public function test_scanning_a_box_barcode_adds_the_box_unit(): void
+    {
+        $this->indomieDus->update(['barcode' => '18998866200308']);
+
+        Livewire::actingAs($this->admin)
+            ->test(Form::class)
+            ->set('search', '18998866200308')
+            ->call('scan')
+            ->assertCount('items', 1)
+            ->assertSet('items.0.product_unit_id', $this->indomieDus->id)
+            ->assertSet('items.0.conversion_factor', 40.0);
+    }
+
+    public function test_scanning_an_additional_barcode_finds_the_same_unit(): void
+    {
+        $pcs = $this->indomie->units()->where('unit_name', 'Pcs')->first();
+        $pcs->update(['barcode' => '1111111111111']);
+        $pcs->barcodes()->create(['barcode' => '2222222222222']);
+
+        Livewire::actingAs($this->admin)
+            ->test(Form::class)
+            ->set('search', '1111111111111')->call('scan')
+            ->set('search', '2222222222222')->call('scan')
+            ->assertCount('items', 1)
+            ->assertSet('items.0.qty', '2');
+    }
+
+    public function test_scanning_unknown_barcode_adds_nothing(): void
+    {
+        Livewire::actingAs($this->admin)
+            ->test(Form::class)
+            ->set('search', '0000000000000')
+            ->call('scan')
+            ->assertCount('items', 0)
+            ->assertDispatched('notify');
+    }
+
     public function test_gudang_can_manage_purchases(): void
     {
         $gudang = User::factory()->create();

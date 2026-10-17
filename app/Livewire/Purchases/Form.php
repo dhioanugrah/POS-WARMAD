@@ -80,7 +80,56 @@ class Form extends Component
             return;
         }
 
-        $this->items[] = [
+        $this->items[] = $this->makeItem($product, $unit);
+        $this->search = '';
+    }
+
+    /**
+     * Scan/type a barcode (or exact product code) and press Enter. The first
+     * scan adds the row for the scanned unit, every repeat scan of that unit
+     * bumps its qty by 1 — so incoming goods can be counted piece by piece.
+     */
+    public function scan(): void
+    {
+        $value = trim($this->search);
+        $this->search = '';
+
+        if ($value === '') {
+            return;
+        }
+
+        $unit = ProductUnit::query()
+            ->whereAnyBarcode($value)
+            ->whereHas('product', fn ($q) => $q->where('is_active', true)->where('type', 'stock'))
+            ->with('product.units')
+            ->first();
+
+        if (! $unit) {
+            $product = Product::query()->where('code', $value)->where('is_active', true)->where('type', 'stock')->with('units')->first();
+            $unit = $product?->units->firstWhere('is_default_sale', true) ?? $product?->units->first();
+        }
+
+        if (! $unit) {
+            $this->dispatch('notify', message: 'Barang dengan barcode/kode tersebut tidak ditemukan.', type: 'error');
+            $this->dispatch('focus-search');
+
+            return;
+        }
+
+        $existingIndex = collect($this->items)->search(fn ($item) => $item['product_unit_id'] === $unit->id);
+
+        if ($existingIndex !== false) {
+            $this->items[$existingIndex]['qty'] = (string) ((float) ($this->items[$existingIndex]['qty'] ?: 0) + 1);
+        } else {
+            $this->items[] = $this->makeItem($unit->product, $unit);
+        }
+
+        $this->dispatch('focus-search');
+    }
+
+    private function makeItem(Product $product, ProductUnit $unit): array
+    {
+        return [
             'product_id' => $product->id,
             'product_unit_id' => $unit->id,
             'product_name' => $product->name,
@@ -91,7 +140,6 @@ class Form extends Component
             'discount_amount' => '0',
             'available_units' => $product->units->map(fn ($u) => ['id' => $u->id, 'unit_name' => $u->unit_name, 'conversion_factor' => (float) $u->conversion_factor])->all(),
         ];
-        $this->search = '';
     }
 
     public function changeUnit(int $index, int $unitId): void
