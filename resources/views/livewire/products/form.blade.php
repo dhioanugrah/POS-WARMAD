@@ -7,6 +7,8 @@
         </x-slot:actions>
     </x-page-header>
 
+    @php $countsOpeningStock = $this->countsOpeningStock(); @endphp
+
     <form wire:submit="save" class="space-y-6">
         <div class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
             <h2 class="mb-4 text-sm font-semibold text-slate-900">Data Utama</h2>
@@ -19,7 +21,7 @@
                         <div class="flex-1">
                             <x-select wire:model="categoryId" placeholder="- Pilih Kategori -" :options="$categories" />
                         </div>
-                        <button type="button" wire:click="openQuickAddCategory" title="Tambah kategori baru" class="flex flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 px-3 text-slate-600 hover:bg-slate-200">
+                        <button type="button" wire:click="openQuickAddCategory" title="Tambah kategori baru" class="flex h-9 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 px-3 text-slate-600 hover:bg-slate-200">
                             <x-icon name="plus" class="size-4" />
                         </button>
                     </div>
@@ -30,7 +32,7 @@
                         <div class="flex-1">
                             <x-select wire:model="brandId" placeholder="- Pilih Merek -" :options="$brands" />
                         </div>
-                        <button type="button" wire:click="openQuickAddBrand" title="Tambah merek baru" class="flex flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 px-3 text-slate-600 hover:bg-slate-200">
+                        <button type="button" wire:click="openQuickAddBrand" title="Tambah merek baru" class="flex h-9 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 px-3 text-slate-600 hover:bg-slate-200">
                             <x-icon name="plus" class="size-4" />
                         </button>
                     </div>
@@ -77,6 +79,9 @@
                             <th class="py-2 pr-3">Isi (konversi ke satuan dasar)</th>
                             <th class="py-2 pr-3">Barcode</th>
                             <th class="py-2 pr-3">Harga Jual</th>
+                            @if($countsOpeningStock)
+                                <th class="py-2 pr-3">Stok Awal</th>
+                            @endif
                             <th class="py-2"></th>
                         </tr>
                     </thead>
@@ -123,6 +128,11 @@
                                 <td class="py-2 pr-3 w-40">
                                     <x-input type="number" step="1" wire:model="units.{{ $index }}.price_sell" placeholder="0" />
                                 </td>
+                                @if($countsOpeningStock)
+                                    <td class="py-2 pr-3 w-28">
+                                        <x-input type="number" step="0.001" min="0" wire:model="units.{{ $index }}.opening_qty" placeholder="0" />
+                                    </td>
+                                @endif
                                 <td class="py-2">
                                     @if($index > 0)
                                         <button type="button" wire:click="removeUnit({{ $index }})" class="text-slate-400 hover:text-rose-600"><x-icon name="trash" class="size-4" /></button>
@@ -134,6 +144,17 @@
                 </table>
             </div>
             <p class="mt-2 text-xs text-slate-400">Baris pertama adalah satuan dasar (konversi 1) dan tidak bisa dihapus. Satu satuan boleh punya banyak barcode (misalnya barang dengan barcode berbeda-beda per pcs) — cukup isi harga sekali, lalu scan tiap barcode (atau ketik manual dan klik Tambah) untuk menambahkannya ke satuan yang sama.</p>
+
+            @if($countsOpeningStock)
+                <div class="mt-4 rounded-lg bg-emerald-50 p-4 ring-1 ring-emerald-100">
+                    <p class="text-sm font-medium text-emerald-900">Stok awal</p>
+                    <p class="mt-0.5 text-xs text-emerald-800">Setiap scan barcode dihitung 1 barang: scan 24 botol = stok awal 24 Pcs, scan barcode dus = 1 Dus. Jumlahnya bisa juga diketik langsung di kolom Stok Awal. Saat disimpan, stok dicatat sebagai Saldo Awal.</p>
+                    <div class="mt-3 grid gap-4 sm:grid-cols-2">
+                        <x-input label="Harga beli per {{ $units[0]['unit_name'] ?: 'satuan dasar' }} (HPP)" type="number" step="0.01" min="0" wire:model="openingCost" placeholder="0" />
+                        <x-select label="Lokasi stok awal" wire:model="openingLocationId" :options="$locations" />
+                    </div>
+                </div>
+            @endif
         </div>
 
         <div class="flex justify-end gap-2">

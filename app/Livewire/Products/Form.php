@@ -2,11 +2,14 @@
 
 namespace App\Livewire\Products;
 
+use App\Enums\StockMovementType;
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\Location;
 use App\Models\Product;
 use App\Models\ProductBarcode;
 use App\Models\ProductUnit;
+use App\Services\StockService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
@@ -48,13 +51,18 @@ class Form extends Component
 
     public ?string $imagePath = null;
 
+    /** Purchase cost per base unit for the opening stock counted on a new product. */
+    public $openingCost = '';
+
+    public ?int $openingLocationId = null;
+
     /**
      * One row per SATUAN (unit): name + conversion + price defined once,
      * but `barcodes` can hold any number of physical barcodes that all
      * resolve to that same unit/price — scan 20 loose bottles into one
      * "Botol" row instead of creating 20 unit rows.
      *
-     * @var array<int, array{id: ?int, unit_name: string, conversion_factor: mixed, barcodes: list<string>, barcode_input: string, price_sell: mixed, is_default_sale: bool}>
+     * @var array<int, array{id: ?int, unit_name: string, conversion_factor: mixed, barcodes: list<string>, barcode_input: string, opening_qty: mixed, price_sell: mixed, is_default_sale: bool}>
      */
     public array $units = [];
 
@@ -78,13 +86,15 @@ class Form extends Component
                 'conversion_factor' => (string) $u->conversion_factor,
                 'barcodes' => $u->all_barcodes,
                 'barcode_input' => '',
+                'opening_qty' => '',
                 'price_sell' => (string) $u->price_sell,
                 'is_default_sale' => $u->is_default_sale,
             ])->all();
         } else {
             $this->units = [
-                ['id' => null, 'unit_name' => 'Pcs', 'conversion_factor' => '1', 'barcodes' => [], 'barcode_input' => '', 'price_sell' => '', 'is_default_sale' => true],
+                ['id' => null, 'unit_name' => 'Pcs', 'conversion_factor' => '1', 'barcodes' => [], 'barcode_input' => '', 'opening_qty' => '', 'price_sell' => '', 'is_default_sale' => true],
             ];
+            $this->openingLocationId = auth()->user()->default_location_id ?? Location::query()->where('is_active', true)->value('id');
         }
     }
 
@@ -128,7 +138,7 @@ class Form extends Component
 
     public function addUnit(): void
     {
-        $this->units[] = ['id' => null, 'unit_name' => '', 'conversion_factor' => '', 'barcodes' => [], 'barcode_input' => '', 'price_sell' => '', 'is_default_sale' => false];
+        $this->units[] = ['id' => null, 'unit_name' => '', 'conversion_factor' => '', 'barcodes' => [], 'barcode_input' => '', 'opening_qty' => '', 'price_sell' => '', 'is_default_sale' => false];
     }
 
     public function removeUnit(int $index): void
@@ -159,6 +169,14 @@ class Form extends Component
             return true;
         }
 
+        // On a new stock product every scan is one physical item: re-scanning
+        // a barcode already on this unit counts it instead of rejecting it.
+        if ($this->countsOpeningStock() && in_array($value, $this->units[$unitIndex]['barcodes'], true)) {
+            $this->bumpOpeningQty($unitIndex);
+
+            return true;
+        }
+
         $allBarcodesInForm = collect($this->units)->flatMap(fn ($u) => $u['barcodes'])->all();
         if (in_array($value, $allBarcodesInForm, true)) {
             $this->addError('units', "Barcode {$value} sudah dipakai di barang ini juga.");
@@ -168,7 +186,27 @@ class Form extends Component
 
         $this->units[$unitIndex]['barcodes'][] = $value;
 
+        if ($this->countsOpeningStock()) {
+            $this->bumpOpeningQty($unitIndex);
+        }
+
         return true;
+    }
+
+    private function bumpOpeningQty(int $unitIndex): void
+    {
+        $this->units[$unitIndex]['opening_qty'] = (string) ((float) ($this->units[$unitIndex]['opening_qty'] ?: 0) + 1);
+    }
+
+    /**
+     * Opening stock is only recorded when creating a stock product; existing
+     * products change stock through Saldo Awal, Pembelian or Penyesuaian.
+     */
+    public function countsOpeningStock(): bool
+    {
+        return ! $this->productId
+            && $this->type === 'stock'
+            && (bool) auth()->user()?->can('stock.opname');
     }
 
     public function removeBarcode(int $unitIndex, int $barcodeIndex): void
@@ -191,6 +229,9 @@ class Form extends Component
             'units.*.unit_name' => 'required|string|max:20',
             'units.*.conversion_factor' => 'required|numeric|min:0.001',
             'units.*.price_sell' => 'required|numeric|min:0',
+            'units.*.opening_qty' => 'nullable|numeric|min:0',
+            'openingCost' => 'nullable|numeric|min:0',
+            'openingLocationId' => [Rule::requiredIf(fn () => $this->countsOpeningStock() && $this->openingQtyBase() > 0), 'nullable', 'exists:locations,id'],
         ];
     }
 
@@ -199,6 +240,8 @@ class Form extends Component
         return [
             'units.*.unit_name.required' => 'Nama satuan wajib diisi.',
             'units.*.price_sell.required' => 'Harga jual wajib diisi.',
+            'units.*.opening_qty.numeric' => 'Stok awal harus berupa angka.',
+            'openingLocationId.required' => 'Pilih lokasi untuk stok awal.',
         ];
     }
 
@@ -284,6 +327,18 @@ class Form extends Component
 
             $product->units()->whereNotIn('id', $keptIds)->delete();
 
+            if ($this->countsOpeningStock() && $this->openingQtyBase() > 0) {
+                app(StockService::class)->applyIncomingCost(
+                    product: $product,
+                    locationId: $this->openingLocationId,
+                    qtyBase: $this->openingQtyBase(),
+                    landedUnitCost: round((float) ($this->openingCost ?: 0), 2),
+                    type: StockMovementType::Opening,
+                    note: 'Saldo awal',
+                    userId: auth()->id(),
+                );
+            }
+
             $this->productId = $product->id;
         });
 
@@ -299,9 +354,15 @@ class Form extends Component
         return sprintf('BRG-%05d', $next);
     }
 
+    private function openingQtyBase(): float
+    {
+        return (float) collect($this->units)->sum(fn ($u) => (float) ($u['opening_qty'] ?: 0) * (float) ($u['conversion_factor'] ?: 0));
+    }
+
     public function render()
     {
         return view('livewire.products.form', [
+            'locations' => Location::query()->where('is_active', true)->pluck('name', 'id'),
             'categories' => Category::query()->orderBy('name')->pluck('name', 'id'),
             'brands' => Brand::query()->orderBy('name')->pluck('name', 'id'),
         ]);

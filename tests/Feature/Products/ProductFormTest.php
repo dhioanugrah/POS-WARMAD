@@ -2,9 +2,13 @@
 
 namespace Tests\Feature\Products;
 
+use App\Enums\LocationType;
+use App\Enums\StockMovementType;
 use App\Livewire\Products\Form;
+use App\Models\Location;
 use App\Models\Product;
 use App\Models\ProductUnit;
+use App\Models\StockMovement;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -15,10 +19,13 @@ class ProductFormTest extends TestCase
 {
     use RefreshDatabase;
 
+    private Location $location;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->seed(RolePermissionSeeder::class);
+        $this->location = Location::create(['code' => 'TKO', 'name' => 'Toko Utama', 'type' => LocationType::Store]);
     }
 
     private function admin(): User
@@ -126,7 +133,7 @@ class ProductFormTest extends TestCase
         }
     }
 
-    public function test_duplicate_barcode_within_same_form_is_rejected(): void
+    public function test_same_barcode_on_another_unit_in_form_is_rejected(): void
     {
         $component = Livewire::actingAs($this->admin())
             ->test(Form::class)
@@ -134,11 +141,12 @@ class ProductFormTest extends TestCase
             ->set('units.0.unit_name', 'Pcs')
             ->set('units.0.price_sell', 1000)
             ->set('units.0.barcode_input', '9999999999999')
-            ->call('addBarcode', 0);
+            ->call('addBarcode', 0)
+            ->call('addUnit');
 
-        $component->set('units.0.barcode_input', '9999999999999')->call('addBarcode', 0);
+        $component->set('units.1.barcode_input', '9999999999999')->call('addBarcode', 1);
 
-        $component->assertHasErrors('units');
+        $component->assertHasErrors('units')->assertSet('units.1.barcodes', []);
     }
 
     public function test_barcode_typed_without_adding_is_still_saved(): void
@@ -167,10 +175,112 @@ class ProductFormTest extends TestCase
             ->set('units.0.price_sell', 1000)
             ->set('units.0.barcode_input', '9999999999999')
             ->call('addBarcode', 0)
-            ->set('units.0.barcode_input', '9999999999999')
+            ->call('addUnit')
+            ->set('units.1.unit_name', 'Dus')
+            ->set('units.1.conversion_factor', 10)
+            ->set('units.1.price_sell', 9000)
+            ->set('units.1.barcode_input', '9999999999999')
             ->call('save')
             ->assertHasErrors('units');
 
         $this->assertDatabaseMissing('products', ['name' => 'Barang Y']);
+    }
+
+    public function test_each_scan_counts_as_one_item_of_opening_stock(): void
+    {
+        $component = Livewire::actingAs($this->admin())
+            ->test(Form::class)
+            ->set('name', 'Hydro Coco')
+            ->set('units.0.unit_name', 'Pcs')
+            ->set('units.0.price_sell', 10000)
+            ->set('openingCost', 7000);
+
+        foreach (range(1, 3) as $i) {
+            $component->set('units.0.barcode_input', '8997009781585')->call('addBarcode', 0);
+        }
+
+        $component->assertSet('units.0.barcodes', ['8997009781585'])
+            ->assertSet('units.0.opening_qty', '3')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $product = Product::where('name', 'Hydro Coco')->firstOrFail();
+        $this->assertSame('3.000', $product->stocks()->where('location_id', $this->location->id)->value('qty'));
+        $this->assertSame('7000.00', $product->fresh()->avg_cost);
+
+        $movement = StockMovement::where('product_id', $product->id)->sole();
+        $this->assertSame(StockMovementType::Opening, $movement->type);
+    }
+
+    public function test_scanning_a_box_barcode_adds_boxes_to_opening_stock(): void
+    {
+        Livewire::actingAs($this->admin())
+            ->test(Form::class)
+            ->set('name', 'Hydro Coco')
+            ->set('units.0.unit_name', 'Pcs')
+            ->set('units.0.price_sell', 10000)
+            ->call('addUnit')
+            ->set('units.1.unit_name', 'Dus')
+            ->set('units.1.conversion_factor', 24)
+            ->set('units.1.price_sell', 230000)
+            ->set('units.1.barcode_input', '18997009781582')->call('addBarcode', 1)
+            ->set('units.1.barcode_input', '18997009781582')->call('addBarcode', 1)
+            ->set('units.0.barcode_input', '8997009781585')->call('addBarcode', 0)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $product = Product::where('name', 'Hydro Coco')->firstOrFail();
+        $this->assertSame('49.000', $product->stocks()->value('qty'));
+    }
+
+    public function test_opening_stock_can_be_typed_without_scanning(): void
+    {
+        Livewire::actingAs($this->admin())
+            ->test(Form::class)
+            ->set('name', 'Gula Curah')
+            ->set('units.0.unit_name', 'Kg')
+            ->set('units.0.price_sell', 15000)
+            ->set('units.0.opening_qty', '12.5')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertSame('12.500', Product::where('name', 'Gula Curah')->firstOrFail()->stocks()->value('qty'));
+    }
+
+    public function test_service_product_gets_no_opening_stock(): void
+    {
+        Livewire::actingAs($this->admin())
+            ->test(Form::class)
+            ->set('name', 'Jasa Bungkus')
+            ->set('type', 'service')
+            ->set('units.0.unit_name', 'Kali')
+            ->set('units.0.price_sell', 5000)
+            ->set('units.0.opening_qty', '5')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertSame(0, StockMovement::count());
+    }
+
+    public function test_editing_a_product_does_not_add_stock_on_rescan(): void
+    {
+        $component = Livewire::actingAs($this->admin())
+            ->test(Form::class)
+            ->set('name', 'Hydro Coco')
+            ->set('units.0.unit_name', 'Pcs')
+            ->set('units.0.price_sell', 10000)
+            ->call('save');
+
+        $product = Product::where('name', 'Hydro Coco')->firstOrFail();
+        ProductUnit::where('product_id', $product->id)->update(['barcode' => '8997009781585']);
+
+        Livewire::actingAs($this->admin())
+            ->test(Form::class, ['product' => $product])
+            ->set('units.0.barcode_input', '8997009781585')
+            ->call('addBarcode', 0)
+            ->assertHasErrors('units')
+            ->call('save');
+
+        $this->assertSame(0, StockMovement::count());
     }
 }
