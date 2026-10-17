@@ -143,21 +143,32 @@ class Form extends Component
     /** Scan/type a barcode into a unit row + Enter: adds it to that row's list. */
     public function addBarcode(int $unitIndex): void
     {
+        $this->pushBarcodeInput($unitIndex);
+    }
+
+    /**
+     * Move the typed/scanned barcode of a unit into its barcode list.
+     * Returns false when the barcode is already used elsewhere in this form.
+     */
+    private function pushBarcodeInput(int $unitIndex): bool
+    {
         $value = trim($this->units[$unitIndex]['barcode_input'] ?? '');
         $this->units[$unitIndex]['barcode_input'] = '';
 
         if ($value === '') {
-            return;
+            return true;
         }
 
         $allBarcodesInForm = collect($this->units)->flatMap(fn ($u) => $u['barcodes'])->all();
         if (in_array($value, $allBarcodesInForm, true)) {
             $this->addError('units', "Barcode {$value} sudah dipakai di barang ini juga.");
 
-            return;
+            return false;
         }
 
         $this->units[$unitIndex]['barcodes'][] = $value;
+
+        return true;
     }
 
     public function removeBarcode(int $unitIndex, int $barcodeIndex): void
@@ -193,6 +204,13 @@ class Form extends Component
 
     public function save(): void
     {
+        // A barcode typed without pressing Enter/Tambah still belongs to the unit.
+        foreach (array_keys($this->units) as $index) {
+            if (! $this->pushBarcodeInput($index)) {
+                return;
+            }
+        }
+
         $this->validate();
 
         // Barcode uniqueness across ALL product_units + product_barcodes (excluding this product's own rows).

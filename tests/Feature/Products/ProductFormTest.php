@@ -140,4 +140,37 @@ class ProductFormTest extends TestCase
 
         $component->assertHasErrors('units');
     }
+
+    public function test_barcode_typed_without_adding_is_still_saved(): void
+    {
+        Livewire::actingAs($this->admin())
+            ->test(Form::class)
+            ->set('name', 'Teh Botol')
+            ->set('units.0.unit_name', 'Botol')
+            ->set('units.0.price_sell', 5000)
+            ->set('units.0.barcode_input', '1111111111111')
+            ->call('addBarcode', 0)
+            ->set('units.0.barcode_input', '2222222222222')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $unit = Product::where('name', 'Teh Botol')->firstOrFail()->units()->first();
+        $this->assertSame(['1111111111111', '2222222222222'], $unit->all_barcodes);
+    }
+
+    public function test_save_stops_when_pending_barcode_duplicates_one_in_form(): void
+    {
+        Livewire::actingAs($this->admin())
+            ->test(Form::class)
+            ->set('name', 'Barang Y')
+            ->set('units.0.unit_name', 'Pcs')
+            ->set('units.0.price_sell', 1000)
+            ->set('units.0.barcode_input', '9999999999999')
+            ->call('addBarcode', 0)
+            ->set('units.0.barcode_input', '9999999999999')
+            ->call('save')
+            ->assertHasErrors('units');
+
+        $this->assertDatabaseMissing('products', ['name' => 'Barang Y']);
+    }
 }

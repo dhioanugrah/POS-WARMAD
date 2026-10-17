@@ -16,7 +16,9 @@
                 <div>
                     <label class="mb-1 block text-sm font-medium text-slate-700">Kategori</label>
                     <div class="flex gap-2">
-                        <x-select wire:model="categoryId" placeholder="- Pilih Kategori -" :options="$categories" class="flex-1" />
+                        <div class="flex-1">
+                            <x-select wire:model="categoryId" placeholder="- Pilih Kategori -" :options="$categories" />
+                        </div>
                         <button type="button" wire:click="openQuickAddCategory" title="Tambah kategori baru" class="flex flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 px-3 text-slate-600 hover:bg-slate-200">
                             <x-icon name="plus" class="size-4" />
                         </button>
@@ -25,7 +27,9 @@
                 <div>
                     <label class="mb-1 block text-sm font-medium text-slate-700">Merek (opsional)</label>
                     <div class="flex gap-2">
-                        <x-select wire:model="brandId" placeholder="- Pilih Merek -" :options="$brands" class="flex-1" />
+                        <div class="flex-1">
+                            <x-select wire:model="brandId" placeholder="- Pilih Merek -" :options="$brands" />
+                        </div>
                         <button type="button" wire:click="openQuickAddBrand" title="Tambah merek baru" class="flex flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 px-3 text-slate-600 hover:bg-slate-200">
                             <x-icon name="plus" class="size-4" />
                         </button>
@@ -89,14 +93,19 @@
                                         <x-input type="number" step="0.001" wire:model="units.{{ $index }}.conversion_factor" placeholder="40" />
                                     @endif
                                 </td>
-                                <td class="py-2 pr-3 w-56">
-                                    <input
-                                        type="text"
-                                        wire:model="units.{{ $index }}.barcode_input"
-                                        wire:keydown.enter.prevent="addBarcode({{ $index }})"
-                                        placeholder="Scan lalu Enter..."
-                                        class="block w-full rounded-lg border-0 py-2 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm"
-                                    >
+                                <td class="py-2 pr-3 w-72">
+                                    <div class="flex gap-2">
+                                        <input
+                                            type="text"
+                                            wire:model="units.{{ $index }}.barcode_input"
+                                            wire:keydown.enter.prevent="addBarcode({{ $index }})"
+                                            placeholder="Scan / ketik barcode..."
+                                            class="block w-full min-w-0 flex-1 rounded-lg border-0 py-2 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm"
+                                        >
+                                        <button type="button" wire:click="addBarcode({{ $index }})" title="Tambah barcode" class="flex flex-shrink-0 items-center gap-1 rounded-lg bg-slate-100 px-3 text-sm text-slate-600 hover:bg-slate-200">
+                                            <x-icon name="plus" class="size-4" /> Tambah
+                                        </button>
+                                    </div>
                                     @if(!empty($unit['barcodes']))
                                         <div class="mt-1.5 flex flex-wrap gap-1">
                                             @foreach($unit['barcodes'] as $bIndex => $barcode)
@@ -108,7 +117,7 @@
                                                 </span>
                                             @endforeach
                                         </div>
-                                        <p class="mt-1 text-[11px] text-slate-400">{{ count($unit['barcodes']) }} barcode untuk satuan ini &mdash; scan lagi untuk tambah.</p>
+                                        <p class="mt-1 text-[11px] text-slate-400">{{ count($unit['barcodes']) }} barcode untuk satuan ini &mdash; scan / ketik lagi untuk tambah.</p>
                                     @endif
                                 </td>
                                 <td class="py-2 pr-3 w-40">
@@ -124,7 +133,7 @@
                     </tbody>
                 </table>
             </div>
-            <p class="mt-2 text-xs text-slate-400">Baris pertama adalah satuan dasar (konversi 1) dan tidak bisa dihapus. Satu satuan boleh punya banyak barcode (misalnya barang dengan barcode berbeda-beda per pcs) — cukup isi harga sekali, lalu scan tiap barcode dan tekan Enter untuk menambahkannya ke satuan yang sama.</p>
+            <p class="mt-2 text-xs text-slate-400">Baris pertama adalah satuan dasar (konversi 1) dan tidak bisa dihapus. Satu satuan boleh punya banyak barcode (misalnya barang dengan barcode berbeda-beda per pcs) — cukup isi harga sekali, lalu scan tiap barcode (atau ketik manual dan klik Tambah) untuk menambahkannya ke satuan yang sama.</p>
         </div>
 
         <div class="flex justify-end gap-2">
