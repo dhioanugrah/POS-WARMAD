@@ -128,6 +128,43 @@ class PurchaseFormTest extends TestCase
             ->assertDispatched('notify');
     }
 
+    public function test_can_quick_add_supplier_from_purchase_form(): void
+    {
+        $component = Livewire::actingAs($this->admin)
+            ->test(Form::class)
+            ->call('openQuickAddSupplier')
+            ->assertSet('showQuickAddSupplier', true)
+            ->set('quickAddSupplierName', 'PT Hydro Indonesia')
+            ->set('quickAddSupplierPhone', '08123456789')
+            ->call('quickAddSupplier')
+            ->assertHasNoErrors();
+
+        $supplier = Supplier::where('name', 'PT Hydro Indonesia')->firstOrFail();
+        $this->assertSame('08123456789', $supplier->phone);
+        $this->assertTrue($supplier->is_active);
+        $this->assertNotEmpty($supplier->code);
+        $component->assertSet('supplierId', $supplier->id)->assertSet('showQuickAddSupplier', false);
+    }
+
+    public function test_quick_add_supplier_requires_a_name(): void
+    {
+        Livewire::actingAs($this->admin)
+            ->test(Form::class)
+            ->call('openQuickAddSupplier')
+            ->call('quickAddSupplier')
+            ->assertHasErrors(['quickAddSupplierName' => 'required']);
+    }
+
+    public function test_missing_supplier_error_uses_readable_name(): void
+    {
+        Livewire::actingAs($this->admin)
+            ->test(Form::class)
+            ->call('addProduct', $this->indomie->id)
+            ->call('saveDraft')
+            ->assertHasErrors('supplierId')
+            ->assertSee('Supplier wajib diisi');
+    }
+
     public function test_gudang_can_manage_purchases(): void
     {
         $gudang = User::factory()->create();

@@ -25,7 +25,21 @@
 
     <div class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <x-select label="Supplier" wire:model="supplierId" placeholder="- Pilih Supplier -" :options="$suppliers" :disabled="$status?->value !== 'draft'" />
+            <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Supplier</label>
+                <div class="flex gap-2">
+                    <div class="flex-1">
+                        <x-select wire:model="supplierId" placeholder="- Pilih Supplier -" :options="$suppliers" :disabled="$status?->value !== 'draft'" />
+                    </div>
+                    @if($status?->value === 'draft')
+                        @can('suppliers.manage')
+                            <button type="button" wire:click="openQuickAddSupplier" title="Tambah supplier baru" class="flex h-9 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 px-3 text-slate-600 hover:bg-slate-200">
+                                <x-icon name="plus" class="size-4" />
+                            </button>
+                        @endcan
+                    @endif
+                </div>
+            </div>
             <x-select label="Lokasi" wire:model="locationId" :options="$locations" :disabled="$status?->value !== 'draft'" />
             <x-input label="No. Faktur Supplier" wire:model="supplierInvoiceNo" :disabled="$status?->value !== 'draft'" />
             <x-input label="Tanggal" type="date" wire:model="purchasedAt" :disabled="$status?->value !== 'draft'" />
@@ -129,4 +143,18 @@
             @endcan
         @endif
     </div>
+
+    <x-modal :show="$showQuickAddSupplier" close="showQuickAddSupplier" maxWidth="sm">
+        <form wire:submit="quickAddSupplier" class="p-6">
+            <h2 class="text-lg font-semibold text-slate-900">Tambah Supplier Baru</h2>
+            <div class="mt-4 space-y-4">
+                <x-input label="Nama Supplier" wire:model="quickAddSupplierName" autofocus />
+                <x-input label="Telepon (opsional)" wire:model="quickAddSupplierPhone" />
+            </div>
+            <div class="mt-6 flex justify-end gap-2">
+                <x-button type="button" variant="secondary" wire:click="$set('showQuickAddSupplier', false)">Batal</x-button>
+                <x-button type="submit">Simpan & Pilih</x-button>
+            </div>
+        </form>
+    </x-modal>
 </div>

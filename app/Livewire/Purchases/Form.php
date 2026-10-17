@@ -11,6 +11,7 @@ use App\Models\Purchase;
 use App\Models\Supplier;
 use App\Services\DocumentNumberService;
 use App\Services\PurchaseService;
+use App\Support\CodeGenerator;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -23,6 +24,12 @@ class Form extends Component
     public ?PurchaseStatus $status = null;
 
     public ?int $supplierId = null;
+
+    public bool $showQuickAddSupplier = false;
+
+    public string $quickAddSupplierName = '';
+
+    public string $quickAddSupplierPhone = '';
 
     public ?int $locationId = null;
 
@@ -69,6 +76,35 @@ class Form extends Component
             $this->purchasedAt = now()->format('Y-m-d');
             $this->status = PurchaseStatus::Draft;
         }
+    }
+
+    public function openQuickAddSupplier(): void
+    {
+        $this->quickAddSupplierName = '';
+        $this->quickAddSupplierPhone = '';
+        $this->resetValidation(['quickAddSupplierName', 'quickAddSupplierPhone']);
+        $this->showQuickAddSupplier = true;
+    }
+
+    public function quickAddSupplier(): void
+    {
+        abort_unless(auth()->user()->can('suppliers.manage'), 403);
+
+        $this->validate([
+            'quickAddSupplierName' => 'required|string|max:150',
+            'quickAddSupplierPhone' => 'nullable|string|max:30',
+        ], [], ['quickAddSupplierName' => 'nama supplier', 'quickAddSupplierPhone' => 'telepon']);
+
+        $supplier = Supplier::query()->create([
+            'code' => CodeGenerator::next(Supplier::class, 'SUP'),
+            'name' => $this->quickAddSupplierName,
+            'phone' => $this->quickAddSupplierPhone ?: null,
+            'is_active' => true,
+        ]);
+
+        $this->supplierId = $supplier->id;
+        $this->showQuickAddSupplier = false;
+        $this->dispatch('notify', message: 'Supplier ditambahkan.', type: 'success');
     }
 
     public function addProduct(int $productId): void
@@ -178,7 +214,7 @@ class Form extends Component
             'items' => 'required|array|min:1',
             'items.*.qty' => 'required|numeric|min:0.001',
             'items.*.price' => 'required|numeric|min:0',
-        ], [], ['items' => 'daftar barang']);
+        ], [], ['items' => 'daftar barang', 'supplierId' => 'supplier', 'locationId' => 'lokasi', 'purchasedAt' => 'tanggal']);
 
         DB::transaction(function () {
             $subtotal = $this->subtotal;
