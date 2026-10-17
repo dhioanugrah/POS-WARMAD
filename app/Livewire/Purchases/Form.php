@@ -6,12 +6,14 @@ use App\Enums\PurchaseStatus;
 use App\Exceptions\PosException;
 use App\Models\Location;
 use App\Models\Product;
+use App\Models\ProductStock;
 use App\Models\ProductUnit;
 use App\Models\Purchase;
 use App\Models\Supplier;
 use App\Services\DocumentNumberService;
 use App\Services\PurchaseService;
 use App\Support\CodeGenerator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -152,6 +154,27 @@ class Form extends Component
             return;
         }
 
+        $this->addOrBumpUnit($unit);
+        $this->dispatch('focus-search');
+    }
+
+    /**
+     * Pick a unit from the barcode dropdown instead of scanning it.
+     */
+    public function addProductUnit(int $unitId): void
+    {
+        $unit = ProductUnit::query()
+            ->whereHas('product', fn ($q) => $q->where('is_active', true)->where('type', 'stock'))
+            ->with('product.units')
+            ->findOrFail($unitId);
+
+        $this->addOrBumpUnit($unit);
+        $this->search = '';
+        $this->dispatch('focus-search');
+    }
+
+    private function addOrBumpUnit(ProductUnit $unit): void
+    {
         $existingIndex = collect($this->items)->search(fn ($item) => $item['product_unit_id'] === $unit->id);
 
         if ($existingIndex !== false) {
@@ -159,8 +182,37 @@ class Form extends Component
         } else {
             $this->items[] = $this->makeItem($unit->product, $unit);
         }
+    }
 
-        $this->dispatch('focus-search');
+    /**
+     * Units that have a barcode but are not in this purchase yet, with their
+     * stock at the chosen location — products still at zero stock come first.
+     */
+    private function barcodeOptions(): Collection
+    {
+        $stocks = ProductStock::query()->where('location_id', $this->locationId)->pluck('qty', 'product_id');
+
+        return ProductUnit::query()
+            ->where(fn ($q) => $q->where(fn ($q) => $q->whereNotNull('barcode')->where('barcode', '!=', ''))->orWhereHas('barcodes'))
+            ->whereHas('product', fn ($q) => $q->where('is_active', true)->where('type', 'stock'))
+            ->whereNotIn('id', collect($this->items)->pluck('product_unit_id')->all())
+            ->with(['product', 'barcodes'])
+            ->get()
+            ->map(fn (ProductUnit $unit) => [
+                'unit_id' => $unit->id,
+                'product_name' => $unit->product->name,
+                'unit_name' => $unit->unit_name,
+                'is_base' => (bool) $unit->is_base,
+                'barcodes' => $unit->all_barcodes,
+                'stock' => (float) ($stocks[$unit->product_id] ?? 0),
+                'base_unit' => $unit->product->base_unit,
+            ])
+            ->sortBy([
+                fn ($a, $b) => ($a['stock'] > 0) <=> ($b['stock'] > 0),
+                fn ($a, $b) => strcasecmp($a['product_name'], $b['product_name']),
+                fn ($a, $b) => $b['is_base'] <=> $a['is_base'],
+            ])
+            ->values();
     }
 
     private function makeItem(Product $product, ProductUnit $unit): array
@@ -301,6 +353,7 @@ class Form extends Component
         return view('livewire.purchases.form', [
             'suppliers' => Supplier::query()->where('is_active', true)->orderBy('name')->pluck('name', 'id'),
             'locations' => Location::query()->where('is_active', true)->pluck('name', 'id'),
+            'barcodeOptions' => $this->status === PurchaseStatus::Draft ? $this->barcodeOptions() : collect(),
             'results' => $this->search
                 ? Product::query()->where('is_active', true)->where('type', 'stock')
                     ->where(fn ($q) => $q->where('name', 'like', "%{$this->search}%")->orWhere('code', 'like', "%{$this->search}%"))

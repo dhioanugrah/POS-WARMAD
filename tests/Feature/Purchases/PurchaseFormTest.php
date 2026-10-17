@@ -165,6 +165,33 @@ class PurchaseFormTest extends TestCase
             ->assertSee('Supplier wajib diisi');
     }
 
+    public function test_barcode_dropdown_lists_units_not_yet_in_purchase_with_empty_stock_first(): void
+    {
+        $this->indomie->units()->where('unit_name', 'Pcs')->update(['barcode' => '8998866200301']);
+        $this->indomieDus->update(['barcode' => '18998866200308']);
+        $hydro = Product::create(['code' => 'BRG-00001', 'name' => 'Hydro Coco', 'type' => ProductType::Stock, 'base_unit' => 'Pcs']);
+        $hydroPcs = ProductUnit::create(['product_id' => $hydro->id, 'unit_name' => 'Pcs', 'conversion_factor' => 1, 'is_base' => true, 'is_default_sale' => true, 'barcode' => '8997009781585', 'price_sell' => 10000]);
+        $hydroPcs->barcodes()->create(['barcode' => '8997009781592']);
+        $noBarcode = Product::create(['code' => 'BRG-00002', 'name' => 'Gula Curah', 'type' => ProductType::Stock, 'base_unit' => 'Kg']);
+        ProductUnit::create(['product_id' => $noBarcode->id, 'unit_name' => 'Kg', 'conversion_factor' => 1, 'is_base' => true, 'price_sell' => 15000]);
+
+        $component = Livewire::actingAs($this->admin)
+            ->test(Form::class)
+            ->set('locationId', $this->location->id);
+
+        $options = $component->viewData('barcodeOptions');
+        $this->assertSame(['Hydro Coco', 'Indomie Goreng Special', 'Indomie Goreng Special'], $options->pluck('product_name')->all());
+        $this->assertSame(['8997009781585', '8997009781592'], $options->first()['barcodes']);
+        $this->assertSame(0.0, $options->first()['stock']);
+        $this->assertSame(100.0, $options->last()['stock']);
+
+        $component->call('addProductUnit', $this->indomieDus->id)
+            ->assertSet('items.0.product_unit_id', $this->indomieDus->id)
+            ->assertSet('items.0.qty', '1');
+
+        $this->assertNotContains($this->indomieDus->id, $component->viewData('barcodeOptions')->pluck('unit_id')->all());
+    }
+
     public function test_gudang_can_manage_purchases(): void
     {
         $gudang = User::factory()->create();
