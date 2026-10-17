@@ -98,6 +98,21 @@ class CashierTest extends TestCase
         $this->assertCount(1, $component->get('cart'));
     }
 
+    public function test_barcode_list_shows_when_search_is_empty_and_picking_adds_to_cart(): void
+    {
+        $this->indomiePcs->barcodes()->create(['barcode' => '8998866200999']);
+
+        $component = $this->withOpenShift();
+        $this->assertSame(['18998866200308', '8998866200301', '8998866200999'], $component->viewData('barcodeOptions')->pluck('barcode')->all());
+
+        $component->call('pickBarcode', '8998866200999');
+        $this->assertSame(1.0, (float) $component->get('cart')[$this->indomiePcs->id]['qty']);
+        $this->assertSame(['18998866200308', '8998866200301'], $component->viewData('barcodeOptions')->pluck('barcode')->all());
+
+        $component->call('clearCart');
+        $this->assertCount(3, $component->viewData('barcodeOptions'));
+    }
+
     public function test_search_by_name_uat_pos_05(): void
     {
         $aqua = Product::create(['code' => 'BRD-002', 'name' => 'Aqua Botol 600ml', 'type' => ProductType::Stock, 'base_unit' => 'Botol']);

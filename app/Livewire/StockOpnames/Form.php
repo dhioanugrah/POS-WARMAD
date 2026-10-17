@@ -3,9 +3,11 @@
 namespace App\Livewire\StockOpnames;
 
 use App\Enums\StockOpnameStatus;
+use App\Livewire\Concerns\PicksBarcodes;
 use App\Models\Category;
 use App\Models\Location;
 use App\Models\Product;
+use App\Models\ProductUnit;
 use App\Models\StockOpname;
 use App\Models\StockOpnameItem;
 use App\Services\DocumentNumberService;
@@ -17,6 +19,8 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class Form extends Component
 {
+    use PicksBarcodes;
+
     public ?int $opnameId = null;
 
     public ?StockOpnameStatus $status = null;
@@ -92,20 +96,38 @@ class Form extends Component
             return;
         }
 
-        $product = Product::query()
-            ->where(fn ($q) => $q->where('code', $value)->orWhereHas('units', fn ($q2) => $q2->whereAnyBarcode($value)))
-            ->first();
+        // Counted qty is in base units: scanning a box barcode counts the whole box.
+        $unit = ProductUnit::query()->whereAnyBarcode($value)->first();
+        $product = $unit?->product ?? Product::query()->where('code', $value)->first();
+        $qtyBase = $unit ? (float) $unit->conversion_factor : 1.0;
 
         if (! $product) {
+            $this->dispatch('notify', message: 'Barang dengan barcode/kode tersebut tidak ditemukan.', type: 'error');
+
             return;
         }
 
         $item = StockOpnameItem::query()->where('stock_opname_id', $this->opnameId)->where('product_id', $product->id)->first();
         if (! $item) {
+            $this->dispatch('notify', message: "{$product->name} tidak termasuk dalam sesi opname ini.", type: 'error');
+
             return;
         }
 
-        $item->update(['counted_qty' => (float) ($item->counted_qty ?? 0) + 1]);
+        $item->update(['counted_qty' => (float) ($item->counted_qty ?? 0) + $qtyBase]);
+
+        if ($unit) {
+            $this->markBarcodePicked($value, $unit->id);
+        }
+    }
+
+    /**
+     * Pick a barcode from the dropdown instead of scanning it.
+     */
+    public function pickBarcode(string $barcode): void
+    {
+        $this->scanInput = $barcode;
+        $this->scan();
     }
 
     public function post(): void
@@ -118,7 +140,19 @@ class Form extends Component
 
     public function render()
     {
+        $productIds = $this->opnameId
+            ? StockOpnameItem::query()->where('stock_opname_id', $this->opnameId)->pluck('product_id')->all()
+            : [];
+
         return view('livewire.stock-opnames.form', [
+            'barcodeOptions' => $this->status === StockOpnameStatus::Draft && $productIds
+                ? $this->barcodeOptions(
+                    $this->locationId,
+                    ProductUnit::query()->whereIn('product_id', $productIds)->pluck('id')->all(),
+                    $this->scanInput,
+                    fn ($q) => $q->whereIn('id', $productIds),
+                )
+                : collect(),
             'locations' => Location::query()->where('is_active', true)->pluck('name', 'id'),
             'categories' => Category::query()->orderBy('name')->pluck('name', 'id'),
             'items' => $this->opnameId

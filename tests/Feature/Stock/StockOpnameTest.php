@@ -93,4 +93,34 @@ class StockOpnameTest extends TestCase
         $this->assertSame('24.000', $gula->fresh()->stocks()->first()->qty);
         $this->assertSame('100.000', $indomie->fresh()->stocks()->first()->qty);
     }
+
+    public function test_scanning_counts_by_unit_and_dropdown_offers_remaining_barcodes(): void
+    {
+        $hydro = $this->makeProduct('BRG-00001', 'Hydro Coco', 'Minuman', 10, 7000);
+        $pcs = $hydro->units()->first();
+        $pcs->update(['barcode' => '8997009781585']);
+        $pcs->barcodes()->create(['barcode' => '982791793129']);
+        ProductUnit::create(['product_id' => $hydro->id, 'unit_name' => 'Dus', 'conversion_factor' => 24, 'barcode' => '18997009781582', 'price_sell' => 230000]);
+        $other = $this->makeProduct('BRG-00002', 'Teh Botol', 'Snack', 5, 3000);
+        $other->units()->first()->update(['barcode' => '1111111111111']);
+
+        $opnameId = Livewire::actingAs($this->gudang)
+            ->test(Form::class)
+            ->set('locationId', $this->location->id)
+            ->set('scopeCategoryId', $hydro->category_id)
+            ->call('createSession')
+            ->get('opnameId');
+
+        $component = Livewire::actingAs($this->gudang)->test(Form::class, ['stockOpname' => StockOpname::find($opnameId)]);
+
+        // Only barcodes of items in this opname session are offered.
+        $this->assertEqualsCanonicalizing(['8997009781585', '982791793129', '18997009781582'], $component->viewData('barcodeOptions')->pluck('barcode')->all());
+
+        $component->set('scanInput', '18997009781582')->call('scan')
+            ->call('pickBarcode', '982791793129');
+
+        $item = StockOpnameItem::where('stock_opname_id', $opnameId)->where('product_id', $hydro->id)->first();
+        $this->assertSame(25.0, (float) $item->counted_qty);
+        $this->assertSame(['8997009781585'], $component->viewData('barcodeOptions')->pluck('barcode')->all());
+    }
 }

@@ -5,21 +5,25 @@
         <x-select label="Lokasi" wire:model.live="locationId" :options="$locations" />
     </div>
 
-    <div class="mb-4 relative max-w-md">
-        <x-input x-ref="searchInput" wire:model.live.debounce.300ms="search" wire:keydown.enter="scan" placeholder="Scan barcode atau cari nama barang..." autofocus />
-        <p class="mt-1 text-xs text-slate-400">Scan barcode lalu Enter: baris otomatis bertambah 1 tiap scan. Isi harga pokok cukup sekali di awal.</p>
-        @if($results->isNotEmpty())
-            <div class="absolute z-10 mt-1 w-full rounded-lg bg-white shadow-lg ring-1 ring-slate-200 divide-y divide-slate-100">
-                @foreach($results as $product)
-                    <button type="button" wire:click="addProduct({{ $product->id }})" class="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50">
-                        <span>{{ $product->name }} <span class="text-xs text-slate-400">{{ $product->code }}</span></span>
-                        @if($existingProductIds->contains($product->id))
-                            <x-badge variant="info">Sudah ada</x-badge>
-                        @endif
-                    </button>
-                @endforeach
-            </div>
-        @endif
+    <div class="mb-4 relative max-w-md" x-data="{ open: false }" x-on:click.outside="open = false" x-on:keydown.escape="open = false">
+        <x-input x-ref="searchInput" x-on:focus="open = true" wire:model.live.debounce.300ms="search" wire:keydown.enter.prevent="scan" placeholder="Scan barcode atau cari nama barang..." autofocus />
+        <p class="mt-1 text-xs text-slate-400">Scan barcode lalu Enter: baris otomatis bertambah 1 tiap scan. Isi harga pokok cukup sekali di awal. Atau klik kolom ini untuk memilih dari daftar barcode.</p>
+        <div x-show="open" x-cloak class="absolute z-10 mt-1 max-h-96 w-full overflow-y-auto rounded-lg bg-white shadow-lg ring-1 ring-slate-200">
+            <x-barcode-picker :options="$barcodeOptions" />
+            @if($results->isNotEmpty())
+                <div class="divide-y divide-slate-100 border-t border-slate-200">
+                    <p class="px-3 py-2 text-xs font-medium text-slate-500">Cari berdasarkan nama barang</p>
+                    @foreach($results as $product)
+                        <button type="button" wire:click="addProduct({{ $product->id }})" class="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50">
+                            <span>{{ $product->name }} <span class="text-xs text-slate-400">{{ $product->code }}</span></span>
+                            @if($existingProductIds->contains($product->id))
+                                <x-badge variant="info">Sudah ada</x-badge>
+                            @endif
+                        </button>
+                    @endforeach
+                </div>
+            @endif
+        </div>
     </div>
 
     @error('rows') <p class="mb-3 text-sm text-rose-600">{{ $message }}</p> @enderror

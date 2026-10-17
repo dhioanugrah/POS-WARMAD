@@ -121,4 +121,29 @@ class OpeningTest extends TestCase
 
         $this->assertCount(2, $component->get('rows'));
     }
+
+    public function test_barcode_dropdown_offers_each_remaining_barcode(): void
+    {
+        $owner = User::factory()->create();
+        $owner->assignRole('Owner');
+
+        $location = Location::create(['code' => 'TKO', 'name' => 'Toko Utama', 'type' => LocationType::Store]);
+        $product = Product::create(['code' => 'BRG-00001', 'name' => 'Hydro Coco', 'type' => ProductType::Stock, 'base_unit' => 'Pcs']);
+        $pcs = ProductUnit::create(['product_id' => $product->id, 'unit_name' => 'Pcs', 'conversion_factor' => 1, 'is_base' => true, 'barcode' => '8997009781585', 'price_sell' => 10000]);
+        $pcs->barcodes()->create(['barcode' => '982791793129']);
+
+        $component = Livewire::actingAs($owner)
+            ->test(Opening::class)
+            ->set('locationId', $location->id);
+
+        $this->assertSame(['8997009781585', '982791793129'], $component->viewData('barcodeOptions')->pluck('barcode')->all());
+
+        $component->call('pickBarcode', '8997009781585')
+            ->assertSet('rows.0.unit_id', $pcs->id)
+            ->assertSet('rows.0.qty', 1);
+        $this->assertSame(['982791793129'], $component->viewData('barcodeOptions')->pluck('barcode')->all());
+
+        $component->call('pickBarcode', '982791793129')->assertCount('rows', 1)->assertSet('rows.0.qty', 2.0);
+        $this->assertSame([], $component->viewData('barcodeOptions')->pluck('barcode')->all());
+    }
 }

@@ -3,6 +3,7 @@
 namespace App\Livewire\Stock;
 
 use App\Enums\StockMovementType;
+use App\Livewire\Concerns\PicksBarcodes;
 use App\Models\Location;
 use App\Models\Product;
 use App\Models\ProductUnit;
@@ -14,6 +15,8 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class Opening extends Component
 {
+    use PicksBarcodes;
+
     public ?int $locationId = null;
 
     public string $search = '';
@@ -65,7 +68,9 @@ class Opening extends Component
             ->with('product.units')
             ->first();
 
-        if (! $unit) {
+        if ($unit) {
+            $this->markBarcodePicked($value, $unit->id);
+        } else {
             $product = Product::query()->where('code', $value)->where('is_active', true)->where('type', 'stock')->with('units')->first();
             $unit = $product?->units->firstWhere('is_default_sale', true) ?? $product?->units->first();
         }
@@ -79,6 +84,15 @@ class Opening extends Component
 
         $this->addUnitRow($unit);
         $this->dispatch('focus-search');
+    }
+
+    /**
+     * Pick a barcode from the dropdown instead of scanning it.
+     */
+    public function pickBarcode(string $barcode): void
+    {
+        $this->search = $barcode;
+        $this->scan();
     }
 
     private function addUnitRow(ProductUnit $unit): void
@@ -176,6 +190,7 @@ class Opening extends Component
                     ->get()
                 : collect(),
             'existingProductIds' => $existingProductIds,
+            'barcodeOptions' => $this->barcodeOptions($this->locationId, collect($this->rows)->pluck('unit_id')->all(), $this->search, fn ($q) => $q->where('type', 'stock')),
         ]);
     }
 }

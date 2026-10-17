@@ -4,6 +4,7 @@ namespace App\Livewire\Pos;
 
 use App\Enums\ShiftStatus;
 use App\Exceptions\PosException;
+use App\Livewire\Concerns\PicksBarcodes;
 use App\Models\CashCategory;
 use App\Models\CashTransaction;
 use App\Models\HeldCart;
@@ -27,6 +28,8 @@ use Livewire\Component;
 #[Layout('layouts.pos')]
 class Cashier extends Component
 {
+    use PicksBarcodes;
+
     public ?int $shiftId = null;
 
     public bool $showOpenShiftModal = false;
@@ -155,6 +158,7 @@ class Cashier extends Component
         $unit = ProductUnit::query()->whereAnyBarcode($trimmed)->whereHas('product', fn ($q) => $q->where('is_active', true))->first();
         if ($unit) {
             $this->addToCart($unit->id);
+            $this->markBarcodePicked($trimmed, $unit->id);
             $this->search = '';
 
             return true;
@@ -172,6 +176,14 @@ class Cashier extends Component
         }
 
         return false;
+    }
+
+    /**
+     * Pick a barcode from the list instead of scanning it.
+     */
+    public function pickBarcode(string $barcode): void
+    {
+        $this->tryDirectMatch($barcode);
     }
 
     public function handleEnter(): void
@@ -602,6 +614,12 @@ class Cashier extends Component
         return view('livewire.pos.cashier', [
             'heldCarts' => HeldCart::query()->where('user_id', auth()->id())->latest()->get(),
             'searchResultsList' => $this->searchResults(),
+            'barcodeOptions' => trim($this->search) === ''
+                ? $this->barcodeOptions(
+                    $this->shift?->location_id ?? auth()->user()->default_location_id ?? Location::query()->where('is_active', true)->value('id'),
+                    array_keys($this->cart),
+                )
+                : collect(),
             'cashCategories' => CashCategory::query()->where('type', $this->cashDrawerType)->where('is_active', true)->pluck('name', 'id'),
             'shiftSales' => $this->shiftId
                 ? Sale::query()->where('shift_id', $this->shiftId)->latest('sold_at')->get()

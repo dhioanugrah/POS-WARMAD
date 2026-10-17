@@ -68,9 +68,13 @@
                         <span class="font-semibold text-slate-700">{{ Money::format($unit->price_sell) }}</span>
                     </button>
                 @empty
-                    <div class="flex h-full items-center justify-center p-8 text-center text-sm text-slate-400">
-                        Ketik nama/kode barang atau scan barcode untuk mulai.
-                    </div>
+                    @if(trim($search) === '' && $barcodeOptions->isNotEmpty())
+                        <x-barcode-picker :options="$barcodeOptions" title="Scan barcode, ketik nama, atau pilih barcode di bawah" />
+                    @else
+                        <div class="flex h-full items-center justify-center p-8 text-center text-sm text-slate-400">
+                            Ketik nama/kode barang atau scan barcode untuk mulai.
+                        </div>
+                    @endif
                 @endforelse
             </div>
         </div>

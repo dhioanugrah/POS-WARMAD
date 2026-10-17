@@ -165,13 +165,13 @@ class PurchaseFormTest extends TestCase
             ->assertSee('Supplier wajib diisi');
     }
 
-    public function test_barcode_dropdown_lists_units_not_yet_in_purchase_with_empty_stock_first(): void
+    public function test_barcode_dropdown_lists_each_barcode_not_yet_entered_with_empty_stock_first(): void
     {
         $this->indomie->units()->where('unit_name', 'Pcs')->update(['barcode' => '8998866200301']);
         $this->indomieDus->update(['barcode' => '18998866200308']);
         $hydro = Product::create(['code' => 'BRG-00001', 'name' => 'Hydro Coco', 'type' => ProductType::Stock, 'base_unit' => 'Pcs']);
         $hydroPcs = ProductUnit::create(['product_id' => $hydro->id, 'unit_name' => 'Pcs', 'conversion_factor' => 1, 'is_base' => true, 'is_default_sale' => true, 'barcode' => '8997009781585', 'price_sell' => 10000]);
-        $hydroPcs->barcodes()->create(['barcode' => '8997009781592']);
+        $hydroPcs->barcodes()->create(['barcode' => '982791793129']);
         $noBarcode = Product::create(['code' => 'BRG-00002', 'name' => 'Gula Curah', 'type' => ProductType::Stock, 'base_unit' => 'Kg']);
         ProductUnit::create(['product_id' => $noBarcode->id, 'unit_name' => 'Kg', 'conversion_factor' => 1, 'is_base' => true, 'price_sell' => 15000]);
 
@@ -180,16 +180,27 @@ class PurchaseFormTest extends TestCase
             ->set('locationId', $this->location->id);
 
         $options = $component->viewData('barcodeOptions');
-        $this->assertSame(['Hydro Coco', 'Indomie Goreng Special', 'Indomie Goreng Special'], $options->pluck('product_name')->all());
-        $this->assertSame(['8997009781585', '8997009781592'], $options->first()['barcodes']);
+        $this->assertSame(['8997009781585', '982791793129', '18998866200308', '8998866200301'], $options->pluck('barcode')->all());
+        $this->assertSame('Hydro Coco', $options->first()['product_name']);
         $this->assertSame(0.0, $options->first()['stock']);
         $this->assertSame(100.0, $options->last()['stock']);
 
-        $component->call('addProductUnit', $this->indomieDus->id)
-            ->assertSet('items.0.product_unit_id', $this->indomieDus->id)
+        // Picking one of Hydro Coco's two barcodes adds one Pcs and hides only that barcode.
+        $component->call('pickBarcode', '982791793129')
+            ->assertSet('items.0.product_unit_id', $hydroPcs->id)
             ->assertSet('items.0.qty', '1');
+        $this->assertSame(['8997009781585', '18998866200308', '8998866200301'], $component->viewData('barcodeOptions')->pluck('barcode')->all());
 
-        $this->assertNotContains($this->indomieDus->id, $component->viewData('barcodeOptions')->pluck('unit_id')->all());
+        // The other barcode of the same unit adds to the same row.
+        $component->call('pickBarcode', '8997009781585')->assertCount('items', 1)->assertSet('items.0.qty', '2');
+
+        // Typing filters the remaining barcodes by barcode or item name.
+        $component->set('search', 'indomie');
+        $this->assertSame(['18998866200308', '8998866200301'], $component->viewData('barcodeOptions')->pluck('barcode')->all());
+
+        // Removing the row makes its barcodes available again.
+        $component->set('search', '')->call('removeItem', 0);
+        $this->assertContains('982791793129', $component->viewData('barcodeOptions')->pluck('barcode')->all());
     }
 
     public function test_gudang_can_manage_purchases(): void

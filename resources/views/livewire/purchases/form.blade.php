@@ -49,28 +49,18 @@
     @if($status?->value === 'draft')
         <div class="relative mt-4 max-w-md" x-data="{ open: false }" x-on:focus-search.window="$refs.searchInput?.focus()" x-on:click.outside="open = false" x-on:keydown.escape="open = false">
             <x-input x-ref="searchInput" x-on:focus="open = true" wire:model.live.debounce.300ms="search" wire:keydown.enter.prevent="scan" placeholder="Scan barcode atau cari nama barang..." autofocus />
-            <p class="mt-1 text-xs text-slate-400">Scan barcode lalu Enter: qty bertambah 1 tiap scan. Scan barcode kardus untuk menambah per kardus. Klik kolom ini untuk memilih dari daftar barcode.</p>
-            @if($barcodeOptions->isNotEmpty())
-                <div x-show="open && ! $wire.search" x-cloak class="absolute z-10 mt-1 max-h-80 w-full overflow-y-auto rounded-lg bg-white shadow-lg ring-1 ring-slate-200 divide-y divide-slate-100">
-                    <p class="px-3 py-2 text-xs font-medium text-slate-500">Barcode yang belum ada di pembelian ini</p>
-                    @foreach($barcodeOptions as $option)
-                        <button type="button" wire:key="bopt-{{ $option['unit_id'] }}" wire:click="addProductUnit({{ $option['unit_id'] }})" class="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-slate-50">
-                            <span class="min-w-0">
-                                <span class="block truncate">{{ $option['product_name'] }} <span class="text-xs text-slate-500">({{ $option['unit_name'] }})</span></span>
-                                <span class="block truncate font-mono text-xs text-slate-400">{{ implode(', ', $option['barcodes']) }}</span>
-                            </span>
-                            <x-badge :variant="$option['stock'] > 0 ? 'neutral' : 'warning'">Stok {{ \App\Support\UnitFormatter::formatQty($option['stock']) }} {{ $option['base_unit'] }}</x-badge>
-                        </button>
-                    @endforeach
-                </div>
-            @endif
-            @if($results->isNotEmpty())
-                <div class="absolute z-10 mt-1 w-full rounded-lg bg-white shadow-lg ring-1 ring-slate-200 divide-y divide-slate-100">
-                    @foreach($results as $product)
-                        <button type="button" wire:click="addProduct({{ $product->id }})" class="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50">{{ $product->name }} <span class="text-xs text-slate-400">{{ $product->code }}</span></button>
-                    @endforeach
-                </div>
-            @endif
+            <p class="mt-1 text-xs text-slate-400">Scan barcode lalu Enter: qty bertambah 1 tiap scan. Scan barcode kardus untuk menambah per kardus. Atau klik kolom ini untuk memilih dari daftar barcode.</p>
+            <div x-show="open" x-cloak class="absolute z-10 mt-1 max-h-96 w-full overflow-y-auto rounded-lg bg-white shadow-lg ring-1 ring-slate-200">
+                <x-barcode-picker :options="$barcodeOptions" />
+                @if($results->isNotEmpty())
+                    <div class="divide-y divide-slate-100 border-t border-slate-200">
+                        <p class="px-3 py-2 text-xs font-medium text-slate-500">Cari berdasarkan nama barang</p>
+                        @foreach($results as $product)
+                            <button type="button" wire:click="addProduct({{ $product->id }})" class="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50">{{ $product->name }} <span class="text-xs text-slate-400">{{ $product->code }}</span></button>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
         </div>
     @endif
 

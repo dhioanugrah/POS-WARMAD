@@ -19,8 +19,12 @@
         </div>
     @else
         @if($status?->value === 'draft')
-            <div class="mb-4 max-w-md">
-                <x-input wire:model="scanInput" wire:keydown.enter="scan" placeholder="Scan barcode / kode barang..." />
+            <div class="relative mb-4 max-w-md" x-data="{ open: false }" x-on:click.outside="open = false" x-on:keydown.escape="open = false">
+                <x-input x-on:focus="open = true" wire:model.live.debounce.300ms="scanInput" wire:keydown.enter.prevent="scan" placeholder="Scan barcode / kode barang..." />
+                <p class="mt-1 text-xs text-slate-400">Scan barcode lalu Enter: hitungan fisik bertambah 1 satuan tiap scan (barcode dus = isi 1 dus). Atau klik kolom ini untuk memilih dari daftar barcode.</p>
+                <div x-show="open" x-cloak class="absolute z-10 mt-1 max-h-96 w-full overflow-y-auto rounded-lg bg-white shadow-lg ring-1 ring-slate-200">
+                    <x-barcode-picker :options="$barcodeOptions" />
+                </div>
             </div>
         @endif
 
