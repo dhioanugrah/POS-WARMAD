@@ -13,7 +13,15 @@
             <div class="grid gap-4 sm:grid-cols-2">
                 <x-input label="Kode (kosongkan untuk otomatis)" wire:model="code" />
                 <x-input label="Nama Barang" wire:model="name" />
-                <x-select label="Kategori" wire:model="categoryId" placeholder="- Pilih Kategori -" :options="$categories" />
+                <div>
+                    <label class="mb-1 block text-sm font-medium text-slate-700">Kategori</label>
+                    <div class="flex gap-2">
+                        <x-select wire:model="categoryId" placeholder="- Pilih Kategori -" :options="$categories" class="flex-1" />
+                        <button type="button" wire:click="openQuickAddCategory" title="Tambah kategori baru" class="flex flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 px-3 text-slate-600 hover:bg-slate-200">
+                            <x-icon name="plus" class="size-4" />
+                        </button>
+                    </div>
+                </div>
                 <div>
                     <label class="mb-1 block text-sm font-medium text-slate-700">Merek (opsional)</label>
                     <div class="flex gap-2">
@@ -124,6 +132,19 @@
             <x-button type="submit">Simpan</x-button>
         </div>
     </form>
+
+    <x-modal :show="$showQuickAddCategory" close="showQuickAddCategory" maxWidth="sm">
+        <form wire:submit="quickAddCategory" class="p-6">
+            <h2 class="text-lg font-semibold text-slate-900">Tambah Kategori Baru</h2>
+            <div class="mt-4">
+                <x-input label="Nama Kategori" wire:model="quickAddCategoryName" autofocus />
+            </div>
+            <div class="mt-6 flex justify-end gap-2">
+                <x-button type="button" variant="secondary" wire:click="$set('showQuickAddCategory', false)">Batal</x-button>
+                <x-button type="submit">Simpan & Pilih</x-button>
+            </div>
+        </form>
+    </x-modal>
 
     <x-modal :show="$showQuickAddBrand" close="showQuickAddBrand" maxWidth="sm">
         <form wire:submit="quickAddBrand" class="p-6">

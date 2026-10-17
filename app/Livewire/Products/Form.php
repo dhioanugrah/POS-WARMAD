@@ -28,6 +28,10 @@ class Form extends Component
 
     public ?int $brandId = null;
 
+    public bool $showQuickAddCategory = false;
+
+    public string $quickAddCategoryName = '';
+
     public bool $showQuickAddBrand = false;
 
     public string $quickAddBrandName = '';
@@ -82,6 +86,25 @@ class Form extends Component
                 ['id' => null, 'unit_name' => 'Pcs', 'conversion_factor' => '1', 'barcodes' => [], 'barcode_input' => '', 'price_sell' => '', 'is_default_sale' => true],
             ];
         }
+    }
+
+    public function openQuickAddCategory(): void
+    {
+        $this->quickAddCategoryName = '';
+        $this->showQuickAddCategory = true;
+    }
+
+    public function quickAddCategory(): void
+    {
+        $this->validate([
+            'quickAddCategoryName' => ['required', 'string', 'max:150', Rule::unique('categories', 'name')],
+        ], [], ['quickAddCategoryName' => 'nama kategori']);
+
+        $category = Category::create(['name' => $this->quickAddCategoryName]);
+
+        $this->categoryId = $category->id;
+        $this->showQuickAddCategory = false;
+        $this->dispatch('notify', message: 'Kategori ditambahkan.', type: 'success');
     }
 
     public function openQuickAddBrand(): void
