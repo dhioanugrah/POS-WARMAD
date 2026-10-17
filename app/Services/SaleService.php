@@ -14,6 +14,7 @@ use App\Models\ProductUnit;
 use App\Models\Sale;
 use App\Models\User;
 use App\Services\Sales\CheckoutData;
+use App\Services\Sales\CheckoutItemData;
 use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 
@@ -90,7 +91,7 @@ class SaleService
                     'subtotal' => $itemSubtotal,
                     'unit_cost' => $unitCostPerSoldUnit,
                     'price_overridden' => $item->priceOverride !== null && $user->can('pos.override-price'),
-                    'barcodes' => $item->barcodes ?: null,
+                    'barcodes' => $this->soldBarcodes($unit, $item) ?: null,
                 ];
             }
 
@@ -255,6 +256,22 @@ class SaleService
         }
 
         return [$rows, $paidAmount, $changeAmount];
+    }
+
+    /**
+     * The cart is client-side state, so only keep barcodes that really belong
+     * to the sold unit, one per item sold at most.
+     *
+     * @return list<string>
+     */
+    private function soldBarcodes(ProductUnit $unit, CheckoutItemData $item): array
+    {
+        return collect($item->barcodes)
+            ->filter(fn ($barcode) => is_string($barcode) && in_array($barcode, $unit->all_barcodes, true))
+            ->unique()
+            ->take((int) ceil($item->qty))
+            ->values()
+            ->all();
     }
 
     private function applyDiscount(float $base, ?string $type, ?float $value): float

@@ -83,6 +83,41 @@ class SaleServiceTest extends TestCase
         $this->assertSame('97.000', $this->indomie->fresh()->stocks()->first()->qty);
     }
 
+    public function test_only_barcodes_of_the_sold_unit_are_recorded_up_to_its_qty(): void
+    {
+        $this->indomiePcs->barcodes()->create(['barcode' => '8998866200999']);
+        $other = Product::create(['code' => 'BRD-002', 'name' => 'Aqua', 'type' => ProductType::Stock, 'base_unit' => 'Pcs']);
+        ProductUnit::create(['product_id' => $other->id, 'unit_name' => 'Pcs', 'conversion_factor' => 1, 'is_base' => true, 'barcode' => '8886008101053', 'price_sell' => 4000]);
+
+        $sale = $this->service()->checkout(new CheckoutData(
+            locationId: $this->location->id,
+            userId: $this->kasir->id,
+            shiftId: null,
+            customerId: null,
+            items: [new CheckoutItemData($this->indomiePcs->id, 2, barcodes: [
+                '8998866200301',   // this unit
+                '8886008101053',   // another product: dropped
+                '18998866200308',  // same product, other unit: dropped
+                'tidak-ada',       // unknown: dropped
+                '8998866200999',   // this unit (extra barcode)
+            ])],
+            payments: [new CheckoutPaymentData('cash', 10000)],
+        ));
+
+        $this->assertSame(['8998866200301', '8998866200999'], $sale->items->first()->barcodes);
+
+        $capped = $this->service()->checkout(new CheckoutData(
+            locationId: $this->location->id,
+            userId: $this->kasir->id,
+            shiftId: null,
+            customerId: null,
+            items: [new CheckoutItemData($this->indomiePcs->id, 1, barcodes: ['8998866200301', '8998866200999'])],
+            payments: [new CheckoutPaymentData('cash', 10000)],
+        ));
+
+        $this->assertSame(['8998866200301'], $capped->items->first()->barcodes);
+    }
+
     public function test_underpaid_cash_sale_to_umum_is_rejected_uat_pos_12(): void
     {
         $this->expectException(PosException::class);
