@@ -51,7 +51,7 @@ class Form extends Component
 
     public ?string $imagePath = null;
 
-    /** Purchase cost per base unit for the opening stock counted on a new product. */
+    /** Purchase cost per base unit for the stock counted from barcode scans in this form. */
     public $openingCost = '';
 
     public ?int $openingLocationId = null;
@@ -94,8 +94,11 @@ class Form extends Component
             $this->units = [
                 ['id' => null, 'unit_name' => 'Pcs', 'conversion_factor' => '1', 'barcodes' => [], 'barcode_input' => '', 'opening_qty' => '', 'price_sell' => '', 'is_default_sale' => true],
             ];
-            $this->openingLocationId = auth()->user()->default_location_id ?? Location::query()->where('is_active', true)->value('id');
         }
+
+        // Keep the average cost intact when stock is added to an existing product.
+        $this->openingCost = $product?->exists ? (string) $product->avg_cost : '';
+        $this->openingLocationId = auth()->user()->default_location_id ?? Location::query()->where('is_active', true)->value('id');
     }
 
     public function openQuickAddCategory(): void
@@ -169,8 +172,8 @@ class Form extends Component
             return true;
         }
 
-        // On a new stock product every scan is one physical item: re-scanning
-        // a barcode already on this unit counts it instead of rejecting it.
+        // Every scan is one physical item: re-scanning a barcode already on
+        // this unit counts it instead of rejecting it.
         if ($this->countsOpeningStock() && in_array($value, $this->units[$unitIndex]['barcodes'], true)) {
             $this->bumpOpeningQty($unitIndex);
 
@@ -199,13 +202,12 @@ class Form extends Component
     }
 
     /**
-     * Opening stock is only recorded when creating a stock product; existing
-     * products change stock through Saldo Awal, Pembelian or Penyesuaian.
+     * Barcode scans in this form count as stock: opening stock for a new
+     * product, a stock addition for an existing one.
      */
     public function countsOpeningStock(): bool
     {
-        return ! $this->productId
-            && $this->type === 'stock'
+        return $this->type === 'stock'
             && (bool) auth()->user()?->can('stock.opname');
     }
 
@@ -328,13 +330,15 @@ class Form extends Component
             $product->units()->whereNotIn('id', $keptIds)->delete();
 
             if ($this->countsOpeningStock() && $this->openingQtyBase() > 0) {
+                $isNew = ! $this->productId;
+
                 app(StockService::class)->applyIncomingCost(
                     product: $product,
                     locationId: $this->openingLocationId,
                     qtyBase: $this->openingQtyBase(),
                     landedUnitCost: round((float) ($this->openingCost ?: 0), 2),
-                    type: StockMovementType::Opening,
-                    note: 'Saldo awal',
+                    type: $isNew ? StockMovementType::Opening : StockMovementType::Adjustment,
+                    note: $isNew ? 'Saldo awal' : 'Tambah stok dari form barang',
                     userId: auth()->id(),
                 );
             }

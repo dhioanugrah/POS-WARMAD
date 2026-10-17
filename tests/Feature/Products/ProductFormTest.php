@@ -262,24 +262,43 @@ class ProductFormTest extends TestCase
         $this->assertSame(0, StockMovement::count());
     }
 
-    public function test_editing_a_product_does_not_add_stock_on_rescan(): void
+    public function test_scanning_while_editing_adds_stock_at_current_average_cost(): void
     {
-        $component = Livewire::actingAs($this->admin())
+        Livewire::actingAs($this->admin())
             ->test(Form::class)
             ->set('name', 'Hydro Coco')
             ->set('units.0.unit_name', 'Pcs')
             ->set('units.0.price_sell', 10000)
+            ->set('openingCost', 7000)
+            ->set('units.0.barcode_input', '8997009781585')->call('addBarcode', 0)
             ->call('save');
 
         $product = Product::where('name', 'Hydro Coco')->firstOrFail();
-        ProductUnit::where('product_id', $product->id)->update(['barcode' => '8997009781585']);
 
         Livewire::actingAs($this->admin())
             ->test(Form::class, ['product' => $product])
-            ->set('units.0.barcode_input', '8997009781585')
-            ->call('addBarcode', 0)
-            ->assertHasErrors('units')
-            ->call('save');
+            ->assertSet('openingCost', '7000.00')
+            ->set('units.0.barcode_input', '8997009781585')->call('addBarcode', 0)
+            ->set('units.0.barcode_input', '982791793129')->call('addBarcode', 0)
+            ->assertSet('units.0.opening_qty', '2')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertSame('3.000', $product->stocks()->value('qty'));
+        $this->assertSame('7000.00', $product->fresh()->avg_cost);
+        $this->assertSame(StockMovementType::Adjustment, StockMovement::latest('id')->first()->type);
+    }
+
+    public function test_editing_without_scanning_does_not_change_stock(): void
+    {
+        $product = Product::create(['code' => 'BRG-00009', 'name' => 'Teh', 'type' => 'stock', 'base_unit' => 'Pcs'])->refresh();
+        ProductUnit::create(['product_id' => $product->id, 'unit_name' => 'Pcs', 'conversion_factor' => 1, 'is_base' => true, 'barcode' => '1234567890123', 'price_sell' => 3000]);
+
+        Livewire::actingAs($this->admin())
+            ->test(Form::class, ['product' => $product])
+            ->set('name', 'Teh Manis')
+            ->call('save')
+            ->assertHasNoErrors();
 
         $this->assertSame(0, StockMovement::count());
     }

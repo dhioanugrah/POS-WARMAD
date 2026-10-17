@@ -7,7 +7,10 @@
         </x-slot:actions>
     </x-page-header>
 
-    @php $countsOpeningStock = $this->countsOpeningStock(); @endphp
+    @php
+        $countsOpeningStock = $this->countsOpeningStock();
+        $stockLabel = $productId ? 'Tambah Stok' : 'Stok Awal';
+    @endphp
 
     <form wire:submit="save" class="space-y-6">
         <div class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
@@ -80,7 +83,7 @@
                             <th class="py-2 pr-3">Barcode</th>
                             <th class="py-2 pr-3">Harga Jual</th>
                             @if($countsOpeningStock)
-                                <th class="py-2 pr-3">Stok Awal</th>
+                                <th class="py-2 pr-3">{{ $stockLabel }}</th>
                             @endif
                             <th class="py-2"></th>
                         </tr>
@@ -147,8 +150,15 @@
 
             @if($countsOpeningStock)
                 <div class="mt-4 rounded-lg bg-emerald-50 p-4 ring-1 ring-emerald-100">
-                    <p class="text-sm font-medium text-emerald-900">Stok awal</p>
-                    <p class="mt-0.5 text-xs text-emerald-800">Setiap scan barcode dihitung 1 barang: scan 24 botol = stok awal 24 Pcs, scan barcode dus = 1 Dus. Jumlahnya bisa juga diketik langsung di kolom Stok Awal. Saat disimpan, stok dicatat sebagai Saldo Awal.</p>
+                    <p class="text-sm font-medium text-emerald-900">{{ $stockLabel }}</p>
+                    <p class="mt-0.5 text-xs text-emerald-800">
+                        Setiap scan barcode dihitung 1 barang: scan 24 botol = {{ strtolower($stockLabel) }} 24 Pcs, scan barcode dus = 1 Dus. Jumlahnya bisa juga diketik langsung di kolom {{ $stockLabel }}.
+                        @if($productId)
+                            Barcode yang sudah tersimpan sebelumnya tidak otomatis dihitung; scan ulang barangnya atau ketik jumlahnya. Saat disimpan, stok bertambah dan tercatat di Kartu Stok.
+                        @else
+                            Saat disimpan, stok dicatat sebagai Saldo Awal.
+                        @endif
+                    </p>
                     <div class="mt-3 grid gap-4 sm:grid-cols-2">
                         <x-input label="Harga beli per {{ $units[0]['unit_name'] ?: 'satuan dasar' }} (HPP)" type="number" step="0.01" min="0" wire:model="openingCost" placeholder="0" />
                         <x-select label="Lokasi stok awal" wire:model="openingLocationId" :options="$locations" />
