@@ -41,7 +41,7 @@
                     </div>
                 </div>
                 <x-select label="Tipe" wire:model="type" :options="['stock' => 'Barang Stok', 'service' => 'Jasa']" />
-                <x-input label="Stok Minimum" type="number" step="0.001" wire:model="minStock" :disabled="$type === 'service'" />
+                <x-input label="Stok Minimum" type="number" step="1" min="0" wire:model="minStock" :disabled="$type === 'service'" />
             </div>
             <div class="mt-4">
                 <label class="block text-sm font-medium text-slate-700 mb-1">Catatan</label>
@@ -133,7 +133,7 @@
                                 </td>
                                 @if($countsOpeningStock)
                                     <td class="py-2 pr-3 w-28">
-                                        <x-input type="number" step="0.001" min="0" wire:model="units.{{ $index }}.opening_qty" placeholder="0" />
+                                        <x-input type="number" step="1" min="0" wire:model="units.{{ $index }}.opening_qty" placeholder="0" />
                                     </td>
                                 @endif
                                 <td class="py-2">

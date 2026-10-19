@@ -75,7 +75,7 @@ class Form extends Component
             $this->categoryId = $product->category_id;
             $this->brandId = $product->brand_id;
             $this->type = $product->type->value;
-            $this->minStock = (string) $product->min_stock;
+            $this->minStock = (string) (float) $product->min_stock;
             $this->isActive = $product->is_active;
             $this->notes = (string) $product->notes;
             $this->imagePath = $product->image_path;
@@ -225,13 +225,13 @@ class Form extends Component
             'categoryId' => 'nullable|exists:categories,id',
             'brandId' => 'nullable|exists:brands,id',
             'type' => 'required|in:stock,service',
-            'minStock' => 'required|numeric|min:0',
+            'minStock' => 'required|integer|min:0',
             'newImage' => 'nullable|image|max:2048',
             'units' => 'required|array|min:1',
             'units.*.unit_name' => 'required|string|max:20',
             'units.*.conversion_factor' => 'required|numeric|min:0.001',
             'units.*.price_sell' => 'required|numeric|min:0',
-            'units.*.opening_qty' => 'nullable|numeric|min:0',
+            'units.*.opening_qty' => 'nullable|integer|min:0',
             'openingCost' => 'nullable|numeric|min:0',
             'openingLocationId' => [Rule::requiredIf(fn () => $this->countsOpeningStock() && $this->openingQtyBase() > 0), 'nullable', 'exists:locations,id'],
         ];
@@ -242,7 +242,8 @@ class Form extends Component
         return [
             'units.*.unit_name.required' => 'Nama satuan wajib diisi.',
             'units.*.price_sell.required' => 'Harga jual wajib diisi.',
-            'units.*.opening_qty.numeric' => 'Stok awal harus berupa angka.',
+            'units.*.opening_qty.integer' => 'Stok harus bilangan bulat (1, 2, 3, ...).',
+            'minStock.integer' => 'Stok minimum harus bilangan bulat.',
             'openingLocationId.required' => 'Pilih lokasi untuk stok awal.',
         ];
     }

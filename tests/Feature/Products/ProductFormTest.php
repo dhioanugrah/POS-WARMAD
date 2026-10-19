@@ -240,11 +240,25 @@ class ProductFormTest extends TestCase
             ->set('name', 'Gula Curah')
             ->set('units.0.unit_name', 'Kg')
             ->set('units.0.price_sell', 15000)
-            ->set('units.0.opening_qty', '12.5')
+            ->set('units.0.opening_qty', '12')
             ->call('save')
             ->assertHasNoErrors();
 
-        $this->assertSame('12.500', Product::where('name', 'Gula Curah')->firstOrFail()->stocks()->value('qty'));
+        $this->assertSame('12.000', Product::where('name', 'Gula Curah')->firstOrFail()->stocks()->value('qty'));
+    }
+
+    public function test_opening_stock_must_be_a_whole_number(): void
+    {
+        Livewire::actingAs($this->admin())
+            ->test(Form::class)
+            ->set('name', 'Gula Curah')
+            ->set('units.0.unit_name', 'Kg')
+            ->set('units.0.price_sell', 15000)
+            ->set('units.0.opening_qty', '0.024')
+            ->call('save')
+            ->assertHasErrors(['units.0.opening_qty' => 'integer']);
+
+        $this->assertDatabaseMissing('products', ['name' => 'Gula Curah']);
     }
 
     public function test_service_product_gets_no_opening_stock(): void
