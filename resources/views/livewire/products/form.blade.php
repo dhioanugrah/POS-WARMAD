@@ -160,7 +160,7 @@
                         @endif
                     </p>
                     <div class="mt-3 grid gap-4 sm:grid-cols-2">
-                        <x-input label="Harga beli per {{ $units[0]['unit_name'] ?: 'satuan dasar' }} (HPP)" type="number" step="0.01" min="0" wire:model="openingCost" placeholder="0" />
+                        <x-input label="Harga Pokok Penjualan (HPP) per {{ $units[0]['unit_name'] ?: 'satuan dasar' }}" type="number" step="0.01" min="0" wire:model="openingCost" placeholder="0" />
                         <x-select label="Lokasi stok awal" wire:model="openingLocationId" :options="$locations" />
                     </div>
                 </div>
