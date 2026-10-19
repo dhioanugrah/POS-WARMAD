@@ -66,7 +66,7 @@ Daftar key pengaturan awal:
 
 | Key | Default | PRD |
 |---|---|---|
-| `store.name` / `store.address` / `store.phone` / `store.logo_path` / `store.tax_id` | "Toko Saya" / "" / "" / null / "" | SET-01 |
+| `store.name` / `store.address` / `store.phone` / `store.logo_path` / `store.tax_id` | "Pute Mart" / "" / "" / null / "" | SET-01 |
 | `receipt.paper_width` | `58` (opsi 58/80) | SET-02 |
 | `receipt.footer` | "Barang yang telah dibeli tidak dapat dikembalikan kecuali ada perjanjian\nTerima kasih atas kunjungan anda" | SET-02 |
 | `receipt.show_logo` / `receipt.copies` / `receipt.auto_print` | `false` / `1` / `true` | SET-02 |

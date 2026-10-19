@@ -14,7 +14,7 @@ class SettingsSeeder extends Seeder
     public function run(): void
     {
         $defaults = [
-            'store.name' => 'Toko Saya',
+            'store.name' => 'Pute Mart',
             'store.address' => '',
             'store.phone' => '',
             'store.logo_path' => null,
